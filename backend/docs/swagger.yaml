@@ -1,0 +1,551 @@
+basePath: /api
+definitions:
+  gist-backend_internal_service.ImportResult:
+    properties:
+      feedsCreated:
+        type: integer
+      feedsSkipped:
+        type: integer
+      foldersCreated:
+        type: integer
+      foldersSkipped:
+        type: integer
+    type: object
+  internal_handler.createFeedRequest:
+    properties:
+      folderId:
+        type: integer
+      title:
+        type: string
+      url:
+        type: string
+    type: object
+  internal_handler.entryListResponse:
+    properties:
+      entries:
+        items:
+          $ref: '#/definitions/internal_handler.entryResponse'
+        type: array
+      hasMore:
+        type: boolean
+    type: object
+  internal_handler.entryResponse:
+    properties:
+      author:
+        type: string
+      content:
+        type: string
+      createdAt:
+        type: string
+      feedId:
+        type: integer
+      id:
+        type: integer
+      publishedAt:
+        type: string
+      read:
+        type: boolean
+      title:
+        type: string
+      updatedAt:
+        type: string
+      url:
+        type: string
+    type: object
+  internal_handler.errorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  internal_handler.feedPreviewResponse:
+    properties:
+      description:
+        type: string
+      imageUrl:
+        type: string
+      itemCount:
+        type: integer
+      lastUpdated:
+        type: string
+      siteUrl:
+        type: string
+      title:
+        type: string
+      url:
+        type: string
+    type: object
+  internal_handler.feedResponse:
+    properties:
+      createdAt:
+        type: string
+      description:
+        type: string
+      etag:
+        type: string
+      folderId:
+        type: integer
+      id:
+        type: integer
+      lastModified:
+        type: string
+      siteUrl:
+        type: string
+      title:
+        type: string
+      updatedAt:
+        type: string
+      url:
+        type: string
+    type: object
+  internal_handler.folderRequest:
+    properties:
+      name:
+        type: string
+      parentId:
+        type: integer
+    type: object
+  internal_handler.folderResponse:
+    properties:
+      createdAt:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      parentId:
+        type: integer
+      updatedAt:
+        type: string
+    type: object
+  internal_handler.markAllReadRequest:
+    properties:
+      feedId:
+        type: integer
+      folderId:
+        type: integer
+    type: object
+  internal_handler.unreadCountsResponse:
+    properties:
+      counts:
+        additionalProperties:
+          type: integer
+        type: object
+    type: object
+  internal_handler.updateFeedRequest:
+    properties:
+      folderId:
+        type: integer
+      title:
+        type: string
+    type: object
+  internal_handler.updateReadRequest:
+    properties:
+      read:
+        type: boolean
+    type: object
+info:
+  contact: {}
+  description: This is a modern RSS reader API.
+  title: Gist API
+  version: "1.0"
+paths:
+  /entries:
+    get:
+      description: Get a list of entries with optional filters and pagination
+      parameters:
+      - description: Filter by feed ID
+        in: query
+        name: feedId
+        type: integer
+      - description: Filter by folder ID
+        in: query
+        name: folderId
+        type: integer
+      - description: Only return unread entries
+        in: query
+        name: unreadOnly
+        type: boolean
+      - description: Limit the number of entries (default 50)
+        in: query
+        name: limit
+        type: integer
+      - description: Offset for pagination
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.entryListResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+      summary: List entries
+      tags:
+      - entries
+  /entries/{id}:
+    get:
+      description: Get a single entry by its ID
+      parameters:
+      - description: Entry ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.entryResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+      summary: Get entry
+      tags:
+      - entries
+  /entries/{id}/read:
+    patch:
+      consumes:
+      - application/json
+      description: Mark an entry as read or unread
+      parameters:
+      - description: Entry ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Read status
+        in: body
+        name: read
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.updateReadRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+      summary: Update read status
+      tags:
+      - entries
+  /entries/mark-read:
+    post:
+      consumes:
+      - application/json
+      description: Mark all entries as read, optionally filtered by feed or folder
+      parameters:
+      - description: Filter criteria
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.markAllReadRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+      summary: Mark all as read
+      tags:
+      - entries
+  /feeds:
+    get:
+      description: Get a list of all subscribed feeds
+      parameters:
+      - description: Filter by folder ID
+        in: query
+        name: folderId
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/internal_handler.feedResponse'
+            type: array
+      summary: List feeds
+      tags:
+      - feeds
+    post:
+      consumes:
+      - application/json
+      description: Subscribe to a new RSS/Atom feed
+      parameters:
+      - description: Feed creation request
+        in: body
+        name: feed
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.createFeedRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            type: Created
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+      summary: Create a feed
+      tags:
+      - feeds
+  /feeds/{id}:
+    delete:
+      description: Unsubscribe from a feed
+      parameters:
+      - description: Feed ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+      summary: Delete a feed
+      tags:
+      - feeds
+    put:
+      consumes:
+      - application/json
+      description: Update the title or folder of an existing feed
+      parameters:
+      - description: Feed ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Feed update request
+        in: body
+        name: feed
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.updateFeedRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.feedResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+      summary: Update a feed
+      tags:
+      - feeds
+  /feeds/preview:
+    get:
+      description: Fetch information about a feed from its URL
+      parameters:
+      - description: Feed URL
+        in: query
+        name: url
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.feedPreviewResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+      summary: Preview a feed
+      tags:
+      - feeds
+  /folders:
+    get:
+      description: Get a list of all folders
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/internal_handler.folderResponse'
+            type: array
+      summary: List folders
+      tags:
+      - folders
+    post:
+      consumes:
+      - application/json
+      description: Create a new folder to organize feeds
+      parameters:
+      - description: Folder creation request
+        in: body
+        name: folder
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.folderRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            type: Created
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+      summary: Create a folder
+      tags:
+      - folders
+  /folders/{id}:
+    delete:
+      description: Delete an existing folder
+      parameters:
+      - description: Folder ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+      summary: Delete a folder
+      tags:
+      - folders
+    put:
+      consumes:
+      - application/json
+      description: Update the name or parent ID of an existing folder
+      parameters:
+      - description: Folder ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Folder update request
+        in: body
+        name: folder
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.folderRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.folderResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+      summary: Update a folder
+      tags:
+      - folders
+  /opml/export:
+    get:
+      description: Export all feeds and folders to an OPML file
+      produces:
+      - text/xml
+      responses:
+        "200":
+          description: OPML file content
+          schema:
+            type: string
+      summary: Export OPML
+      tags:
+      - opml
+  /opml/import:
+    post:
+      consumes:
+      - multipart/form-data
+      - text/xml
+      description: Import feeds and folders from an OPML file or body
+      parameters:
+      - description: OPML file to import
+        in: formData
+        name: file
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/gist-backend_internal_service.ImportResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+        "413":
+          description: Request Entity Too Large
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+      summary: Import OPML
+      tags:
+      - opml
+  /unread-counts:
+    get:
+      description: Get a map of feed IDs to their respective unread entry counts
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.unreadCountsResponse'
+      summary: Get unread counts
+      tags:
+      - entries
+swagger: "2.0"

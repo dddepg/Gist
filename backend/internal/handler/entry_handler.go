@@ -58,6 +58,19 @@ type unreadCountsResponse struct {
 	Counts map[string]int `json:"counts"`
 }
 
+// List returns a list of entries.
+// @Summary List entries
+// @Description Get a list of entries with optional filters and pagination
+// @Tags entries
+// @Produce json
+// @Param feedId query int false "Filter by feed ID"
+// @Param folderId query int false "Filter by folder ID"
+// @Param unreadOnly query bool false "Only return unread entries"
+// @Param limit query int false "Limit the number of entries (default 50)"
+// @Param offset query int false "Offset for pagination"
+// @Success 200 {object} entryListResponse
+// @Failure 400 {object} errorResponse
+// @Router /entries [get]
 func (h *EntryHandler) List(c echo.Context) error {
 	params := service.EntryListParams{
 		Limit:  50,
@@ -116,6 +129,16 @@ func (h *EntryHandler) List(c echo.Context) error {
 	return c.JSON(http.StatusOK, response)
 }
 
+// GetByID returns an entry by its ID.
+// @Summary Get entry
+// @Description Get a single entry by its ID
+// @Tags entries
+// @Produce json
+// @Param id path int true "Entry ID"
+// @Success 200 {object} entryResponse
+// @Failure 400 {object} errorResponse
+// @Failure 404 {object} errorResponse
+// @Router /entries/{id} [get]
 func (h *EntryHandler) GetByID(c echo.Context) error {
 	id, err := parseIDParam(c, "id")
 	if err != nil {
@@ -130,6 +153,18 @@ func (h *EntryHandler) GetByID(c echo.Context) error {
 	return c.JSON(http.StatusOK, toEntryResponse(entry))
 }
 
+// UpdateReadStatus updates the read status of an entry.
+// @Summary Update read status
+// @Description Mark an entry as read or unread
+// @Tags entries
+// @Accept json
+// @Produce json
+// @Param id path int true "Entry ID"
+// @Param read body updateReadRequest true "Read status"
+// @Success 204 "No Content"
+// @Failure 400 {object} errorResponse
+// @Failure 404 {object} errorResponse
+// @Router /entries/{id}/read [patch]
 func (h *EntryHandler) UpdateReadStatus(c echo.Context) error {
 	id, err := parseIDParam(c, "id")
 	if err != nil {
@@ -148,6 +183,16 @@ func (h *EntryHandler) UpdateReadStatus(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
+// MarkAllAsRead marks all entries as read for a feed or folder.
+// @Summary Mark all as read
+// @Description Mark all entries as read, optionally filtered by feed or folder
+// @Tags entries
+// @Accept json
+// @Produce json
+// @Param request body markAllReadRequest true "Filter criteria"
+// @Success 204 "No Content"
+// @Failure 400 {object} errorResponse
+// @Router /entries/mark-read [post]
 func (h *EntryHandler) MarkAllAsRead(c echo.Context) error {
 	var req markAllReadRequest
 	if err := c.Bind(&req); err != nil {
@@ -161,6 +206,13 @@ func (h *EntryHandler) MarkAllAsRead(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
+// GetUnreadCounts returns unread counts for all feeds.
+// @Summary Get unread counts
+// @Description Get a map of feed IDs to their respective unread entry counts
+// @Tags entries
+// @Produce json
+// @Success 200 {object} unreadCountsResponse
+// @Router /unread-counts [get]
 func (h *EntryHandler) GetUnreadCounts(c echo.Context) error {
 	counts, err := h.service.GetUnreadCounts(c.Request().Context())
 	if err != nil {

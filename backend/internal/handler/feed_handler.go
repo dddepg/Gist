@@ -62,6 +62,16 @@ func (h *FeedHandler) RegisterRoutes(g *echo.Group) {
 	g.DELETE("/feeds/:id", h.Delete)
 }
 
+// Create creates a new feed.
+// @Summary Create a feed
+// @Description Subscribe to a new RSS/Atom feed
+// @Tags feeds
+// @Accept json
+// @Produce json
+// @Param feed body createFeedRequest true "Feed creation request"
+// @Success 201 Created {object} feedResponse
+// @Failure 400 {object} errorResponse
+// @Router /feeds [post]
 func (h *FeedHandler) Create(c echo.Context) error {
 	var req createFeedRequest
 	if err := c.Bind(&req); err != nil {
@@ -74,6 +84,14 @@ func (h *FeedHandler) Create(c echo.Context) error {
 	return c.JSON(http.StatusCreated, toFeedResponse(feed))
 }
 
+// List returns all feeds, optionally filtered by folder.
+// @Summary List feeds
+// @Description Get a list of all subscribed feeds
+// @Tags feeds
+// @Produce json
+// @Param folderId query int false "Filter by folder ID"
+// @Success 200 {array} feedResponse
+// @Router /feeds [get]
 func (h *FeedHandler) List(c echo.Context) error {
 	var folderID *int64
 	if raw := c.QueryParam("folderId"); raw != "" {
@@ -95,6 +113,15 @@ func (h *FeedHandler) List(c echo.Context) error {
 	return c.JSON(http.StatusOK, response)
 }
 
+// Preview fetches a feed's information without subscribing.
+// @Summary Preview a feed
+// @Description Fetch information about a feed from its URL
+// @Tags feeds
+// @Produce json
+// @Param url query string true "Feed URL"
+// @Success 200 {object} feedPreviewResponse
+// @Failure 400 {object} errorResponse
+// @Router /feeds/preview [get]
 func (h *FeedHandler) Preview(c echo.Context) error {
 	rawURL := strings.TrimSpace(c.QueryParam("url"))
 	if rawURL == "" {
@@ -107,6 +134,18 @@ func (h *FeedHandler) Preview(c echo.Context) error {
 	return c.JSON(http.StatusOK, toFeedPreviewResponse(preview))
 }
 
+// Update updates an existing feed.
+// @Summary Update a feed
+// @Description Update the title or folder of an existing feed
+// @Tags feeds
+// @Accept json
+// @Produce json
+// @Param id path int true "Feed ID"
+// @Param feed body updateFeedRequest true "Feed update request"
+// @Success 200 {object} feedResponse
+// @Failure 400 {object} errorResponse
+// @Failure 404 {object} errorResponse
+// @Router /feeds/{id} [put]
 func (h *FeedHandler) Update(c echo.Context) error {
 	id, err := parseIDParam(c, "id")
 	if err != nil {
@@ -123,6 +162,15 @@ func (h *FeedHandler) Update(c echo.Context) error {
 	return c.JSON(http.StatusOK, toFeedResponse(feed))
 }
 
+// Delete deletes a feed.
+// @Summary Delete a feed
+// @Description Unsubscribe from a feed
+// @Tags feeds
+// @Param id path int true "Feed ID"
+// @Success 204 "No Content"
+// @Failure 400 {object} errorResponse
+// @Failure 404 {object} errorResponse
+// @Router /feeds/{id} [delete]
 func (h *FeedHandler) Delete(c echo.Context) error {
 	id, err := parseIDParam(c, "id")
 	if err != nil {
