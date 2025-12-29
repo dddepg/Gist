@@ -1,5 +1,5 @@
 import type { RefCallback } from 'react'
-import { useMemo, useRef } from 'react'
+import { memo, useMemo, useRef } from 'react'
 import DOMPurify from 'dompurify'
 import { useCodeHighlight } from '@/hooks/useCodeHighlight'
 import { useEntryMeta } from '@/hooks/useEntryMeta'
@@ -10,6 +10,10 @@ import type { Entry } from '@/types/api'
 interface EntryContentBodyProps {
   entry: Entry
   scrollRef: RefCallback<HTMLDivElement>
+}
+
+interface SanitizedContentProps {
+  content: string | null | undefined
 }
 
 const ALLOWED_TAGS = [
@@ -120,27 +124,53 @@ function ensurePurifyHooks() {
   hooksBound = true
 }
 
+function sanitizeContent(content: string): string {
+  ensurePurifyHooks()
+  return DOMPurify.sanitize(content, {
+    ALLOWED_TAGS,
+    ALLOWED_ATTR,
+    ADD_ATTR: ['target', 'rel', 'loading', 'decoding'],
+    ALLOW_DATA_ATTR: false,
+  })
+}
+
+// Memoized component to prevent re-rendering when parent state changes
+const SanitizedContent = memo(function SanitizedContent({
+  content,
+}: SanitizedContentProps) {
+  const contentRef = useRef<HTMLDivElement>(null)
+
+  const sanitizedHtml = useMemo(() => {
+    if (!content) return ''
+    return sanitizeContent(content)
+  }, [content])
+
+  useCodeHighlight(contentRef, sanitizedHtml)
+
+  const hasContent = sanitizedHtml.trim().length > 0
+
+  if (!hasContent) {
+    return (
+      <div className="rounded-lg border border-dashed border-border p-8 text-center text-muted-foreground">
+        No content available for this article.
+      </div>
+    )
+  }
+
+  return (
+    <div
+      ref={contentRef}
+      className="entry-content-body"
+      dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
+    />
+  )
+})
+
 export function EntryContentBody({
   entry,
   scrollRef,
 }: EntryContentBodyProps) {
   const { publishedLong, readingTime } = useEntryMeta(entry)
-  const contentRef = useRef<HTMLDivElement>(null)
-  const sanitizedContent = useMemo(() => {
-    if (!entry.content) return ''
-    ensurePurifyHooks()
-
-    return DOMPurify.sanitize(entry.content, {
-      ALLOWED_TAGS,
-      ALLOWED_ATTR,
-      ADD_ATTR: ['target', 'rel', 'loading', 'decoding'],
-      ALLOW_DATA_ATTR: false,
-    })
-  }, [entry.content])
-
-  useCodeHighlight(contentRef, sanitizedContent)
-
-  const hasContent = sanitizedContent.trim().length > 0
 
   return (
     <ScrollArea
@@ -226,17 +256,7 @@ export function EntryContentBody({
           <hr className="border-border/60" />
         </header>
 
-        {hasContent ? (
-          <div
-            ref={contentRef}
-            className="entry-content-body"
-            dangerouslySetInnerHTML={{ __html: sanitizedContent }}
-          />
-        ) : (
-          <div className="rounded-lg border border-dashed border-border p-8 text-center text-muted-foreground">
-            No content available for this article.
-          </div>
-        )}
+        <SanitizedContent content={entry.content} />
       </article>
     </ScrollArea>
   )
