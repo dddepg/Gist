@@ -38,6 +38,16 @@ func (h *FolderHandler) RegisterRoutes(g *echo.Group) {
 	g.DELETE("/folders/:id", h.Delete)
 }
 
+// Create creates a new folder.
+// @Summary Create a folder
+// @Description Create a new folder to organize feeds
+// @Tags folders
+// @Accept json
+// @Produce json
+// @Param folder body folderRequest true "Folder creation request"
+// @Success 201 Created {object} folderResponse
+// @Failure 400 {object} errorResponse
+// @Router /folders [post]
 func (h *FolderHandler) Create(c echo.Context) error {
 	var req folderRequest
 	if err := c.Bind(&req); err != nil {
@@ -50,6 +60,13 @@ func (h *FolderHandler) Create(c echo.Context) error {
 	return c.JSON(http.StatusCreated, toFolderResponse(folder))
 }
 
+// List returns all folders.
+// @Summary List folders
+// @Description Get a list of all folders
+// @Tags folders
+// @Produce json
+// @Success 200 {array} folderResponse
+// @Router /folders [get]
 func (h *FolderHandler) List(c echo.Context) error {
 	folders, err := h.service.List(c.Request().Context())
 	if err != nil {
@@ -62,6 +79,18 @@ func (h *FolderHandler) List(c echo.Context) error {
 	return c.JSON(http.StatusOK, response)
 }
 
+// Update updates an existing folder.
+// @Summary Update a folder
+// @Description Update the name or parent ID of an existing folder
+// @Tags folders
+// @Accept json
+// @Produce json
+// @Param id path int true "Folder ID"
+// @Param folder body folderRequest true "Folder update request"
+// @Success 200 {object} folderResponse
+// @Failure 400 {object} errorResponse
+// @Failure 404 {object} errorResponse
+// @Router /folders/{id} [put]
 func (h *FolderHandler) Update(c echo.Context) error {
 	id, err := parseIDParam(c, "id")
 	if err != nil {
@@ -78,6 +107,15 @@ func (h *FolderHandler) Update(c echo.Context) error {
 	return c.JSON(http.StatusOK, toFolderResponse(folder))
 }
 
+// Delete deletes a folder.
+// @Summary Delete a folder
+// @Description Delete an existing folder
+// @Tags folders
+// @Param id path int true "Folder ID"
+// @Success 204 "No Content"
+// @Failure 400 {object} errorResponse
+// @Failure 404 {object} errorResponse
+// @Router /folders/{id} [delete]
 func (h *FolderHandler) Delete(c echo.Context) error {
 	id, err := parseIDParam(c, "id")
 	if err != nil {

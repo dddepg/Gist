@@ -3,7 +3,9 @@ package http
 import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	echoSwagger "github.com/swaggo/echo-swagger"
 
+	_ "gist-backend/docs"
 	"gist-backend/internal/handler"
 )
 
@@ -18,6 +20,8 @@ func NewRouter(
 	e.HideBanner = true
 	e.Use(middleware.Recover())
 	e.Use(middleware.Logger())
+
+	e.GET("/swagger/*", echoSwagger.WrapHandler)
 
 	api := e.Group("/api")
 	folderHandler.RegisterRoutes(api)

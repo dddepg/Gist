@@ -25,6 +25,18 @@ func (h *OPMLHandler) RegisterRoutes(g *echo.Group) {
 	g.GET("/opml/export", h.Export)
 }
 
+// Import imports subscriptions from an OPML file.
+// @Summary Import OPML
+// @Description Import feeds and folders from an OPML file or body
+// @Tags opml
+// @Accept multipart/form-data
+// @Accept xml
+// @Produce json
+// @Param file formData file false "OPML file to import"
+// @Success 200 {object} service.ImportResult
+// @Failure 400 {object} errorResponse
+// @Failure 413 {object} errorResponse
+// @Router /opml/import [post]
 func (h *OPMLHandler) Import(c echo.Context) error {
 	req := c.Request()
 	req.Body = http.MaxBytesReader(c.Response().Writer, req.Body, maxOPMLSize)
@@ -59,6 +71,13 @@ func (h *OPMLHandler) Import(c echo.Context) error {
 	return c.JSON(http.StatusOK, result)
 }
 
+// Export exports subscriptions to an OPML file.
+// @Summary Export OPML
+// @Description Export all feeds and folders to an OPML file
+// @Tags opml
+// @Produce xml
+// @Success 200 {string} string "OPML file content"
+// @Router /opml/export [get]
 func (h *OPMLHandler) Export(c echo.Context) error {
 	payload, err := h.service.Export(c.Request().Context())
 	if err != nil {

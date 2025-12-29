@@ -16,6 +16,10 @@ import (
 	"gist-backend/internal/service"
 )
 
+// @title Gist API
+// @version 1.0
+// @description This is a modern RSS reader API.
+// @BasePath /api
 func main() {
 	cfg := config.Load()
 
