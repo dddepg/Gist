@@ -35,6 +35,7 @@ export interface Entry {
   title?: string
   url?: string
   content?: string
+  readableContent?: string
   author?: string
   publishedAt?: string
   read: boolean

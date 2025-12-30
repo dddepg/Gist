@@ -12,32 +12,39 @@ import (
 )
 
 type EntryHandler struct {
-	service service.EntryService
+	service            service.EntryService
+	readabilityService service.ReadabilityService
 }
 
-func NewEntryHandler(service service.EntryService) *EntryHandler {
-	return &EntryHandler{service: service}
+func NewEntryHandler(service service.EntryService, readabilityService service.ReadabilityService) *EntryHandler {
+	return &EntryHandler{service: service, readabilityService: readabilityService}
 }
 
 func (h *EntryHandler) RegisterRoutes(g *echo.Group) {
 	g.GET("/entries", h.List)
 	g.GET("/entries/:id", h.GetByID)
 	g.PATCH("/entries/:id/read", h.UpdateReadStatus)
+	g.POST("/entries/:id/fetch-readable", h.FetchReadable)
 	g.POST("/entries/mark-read", h.MarkAllAsRead)
 	g.GET("/unread-counts", h.GetUnreadCounts)
 }
 
 type entryResponse struct {
-	ID          int64   `json:"id"`
-	FeedID      int64   `json:"feedId"`
-	Title       *string `json:"title,omitempty"`
-	URL         *string `json:"url,omitempty"`
-	Content     *string `json:"content,omitempty"`
-	Author      *string `json:"author,omitempty"`
-	PublishedAt *string `json:"publishedAt,omitempty"`
-	Read        bool    `json:"read"`
-	CreatedAt   string  `json:"createdAt"`
-	UpdatedAt   string  `json:"updatedAt"`
+	ID              int64   `json:"id"`
+	FeedID          int64   `json:"feedId"`
+	Title           *string `json:"title,omitempty"`
+	URL             *string `json:"url,omitempty"`
+	Content         *string `json:"content,omitempty"`
+	ReadableContent *string `json:"readableContent,omitempty"`
+	Author          *string `json:"author,omitempty"`
+	PublishedAt     *string `json:"publishedAt,omitempty"`
+	Read            bool    `json:"read"`
+	CreatedAt       string  `json:"createdAt"`
+	UpdatedAt       string  `json:"updatedAt"`
+}
+
+type readableContentResponse struct {
+	ReadableContent string `json:"readableContent"`
 }
 
 type entryListResponse struct {
@@ -183,6 +190,30 @@ func (h *EntryHandler) UpdateReadStatus(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
+// FetchReadable fetches the readable content from the original URL.
+// @Summary Fetch readable content
+// @Description Extract readable content from the entry's original URL using readability
+// @Tags entries
+// @Produce json
+// @Param id path int true "Entry ID"
+// @Success 200 {object} readableContentResponse
+// @Failure 400 {object} errorResponse
+// @Failure 404 {object} errorResponse
+// @Router /entries/{id}/fetch-readable [post]
+func (h *EntryHandler) FetchReadable(c echo.Context) error {
+	id, err := parseIDParam(c, "id")
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, errorResponse{Error: "invalid id"})
+	}
+
+	content, err := h.readabilityService.FetchReadableContent(c.Request().Context(), id)
+	if err != nil {
+		return writeServiceError(c, err)
+	}
+
+	return c.JSON(http.StatusOK, readableContentResponse{ReadableContent: content})
+}
+
 // MarkAllAsRead marks all entries as read for a feed or folder.
 // @Summary Mark all as read
 // @Description Mark all entries as read, optionally filtered by feed or folder
@@ -230,15 +261,16 @@ func (h *EntryHandler) GetUnreadCounts(c echo.Context) error {
 
 func toEntryResponse(e model.Entry) entryResponse {
 	resp := entryResponse{
-		ID:        e.ID,
-		FeedID:    e.FeedID,
-		Title:     e.Title,
-		URL:       e.URL,
-		Content:   e.Content,
-		Author:    e.Author,
-		Read:      e.Read,
-		CreatedAt: e.CreatedAt.UTC().Format(time.RFC3339),
-		UpdatedAt: e.UpdatedAt.UTC().Format(time.RFC3339),
+		ID:              e.ID,
+		FeedID:          e.FeedID,
+		Title:           e.Title,
+		URL:             e.URL,
+		Content:         e.Content,
+		ReadableContent: e.ReadableContent,
+		Author:          e.Author,
+		Read:            e.Read,
+		CreatedAt:       e.CreatedAt.UTC().Format(time.RFC3339),
+		UpdatedAt:       e.UpdatedAt.UTC().Format(time.RFC3339),
 	}
 
 	if e.PublishedAt != nil {

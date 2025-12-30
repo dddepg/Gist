@@ -36,12 +36,13 @@ func main() {
 	folderService := service.NewFolderService(folderRepo)
 	feedService := service.NewFeedService(feedRepo, folderRepo, entryRepo, nil)
 	entryService := service.NewEntryService(entryRepo, feedRepo, folderRepo)
+	readabilityService := service.NewReadabilityService(entryRepo)
 	opmlService := service.NewOPMLService(dbConn, folderRepo, feedRepo)
 	refreshService := service.NewRefreshService(feedRepo, entryRepo, nil)
 
 	folderHandler := handler.NewFolderHandler(folderService)
 	feedHandler := handler.NewFeedHandler(feedService)
-	entryHandler := handler.NewEntryHandler(entryService)
+	entryHandler := handler.NewEntryHandler(entryService, readabilityService)
 	opmlHandler := handler.NewOPMLHandler(opmlService)
 
 	router := transport.NewRouter(folderHandler, feedHandler, entryHandler, opmlHandler, cfg.StaticDir)

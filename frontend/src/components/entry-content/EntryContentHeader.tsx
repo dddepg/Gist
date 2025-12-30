@@ -5,9 +5,18 @@ import type { Entry } from '@/types/api'
 interface EntryContentHeaderProps {
   entry: Entry
   isAtTop: boolean
+  isReadableActive: boolean
+  isLoading: boolean
+  onToggleReadable: () => void
 }
 
-export function EntryContentHeader({ entry, isAtTop }: EntryContentHeaderProps) {
+export function EntryContentHeader({
+  entry,
+  isAtTop,
+  isReadableActive,
+  isLoading,
+  onToggleReadable,
+}: EntryContentHeaderProps) {
   const safeUrl = entry.url && isSafeUrl(entry.url) ? entry.url : null
 
   return (
@@ -34,13 +43,50 @@ export function EntryContentHeader({ entry, isAtTop }: EntryContentHeaderProps) 
         </div>
 
         <div className="flex shrink-0 items-center gap-1">
+          {entry.url && (
+            <button
+              type="button"
+              onClick={onToggleReadable}
+              disabled={isLoading}
+              title={isReadableActive ? 'Show original' : 'Show readable'}
+              className={cn(
+                'no-drag-region flex size-9 items-center justify-center rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+                isReadableActive
+                  ? 'bg-muted text-foreground'
+                  : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+              )}
+            >
+              <svg
+                className={cn('size-5', isLoading && 'animate-spin')}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                viewBox="0 0 24 24"
+              >
+                {isLoading ? (
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
+                ) : (
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                )}
+              </svg>
+            </button>
+          )}
+
           {safeUrl && (
             <a
               href={safeUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="no-drag-region flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              aria-label="在新标签页打开"
+              aria-label="Open original"
             >
               <svg
                 className="size-5"

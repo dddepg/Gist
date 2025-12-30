@@ -73,7 +73,7 @@ function App() {
           onMarkAllRead={handleMarkAllRead}
         />
       }
-      content={<EntryContent entryId={selectedEntryId} />}
+      content={<EntryContent key={selectedEntryId} entryId={selectedEntryId} />}
     />
   )
 }

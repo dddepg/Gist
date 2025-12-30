@@ -83,7 +83,6 @@
 *   **渲染优化**：列表页禁止同步执行复杂的 Readability 转换，使用虚拟滚动。
 
 ### 5.3 安全与渲染 (XSS 防御)
-*   **内容清洗**：渲染 RSS HTML 正文时，**必须**使用 `rehype-sanitize`。
 *   **危险操作**：除非数据源经过 `unified` 管道清洗，否则**严禁**使用 `dangerouslySetInnerHTML`。
 *   **依赖审计**：定期检查 `bun.lock` 漏洞。
 
