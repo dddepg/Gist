@@ -56,6 +56,7 @@ export function EntryList({
     getScrollElement: () => containerRef.current,
     estimateSize: () => ESTIMATED_ITEM_HEIGHT,
     overscan: 5,
+    getItemKey: (index) => entries[index].id,
   })
 
   const virtualItems = virtualizer.getVirtualItems()

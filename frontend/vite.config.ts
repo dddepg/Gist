@@ -21,8 +21,15 @@ export default defineConfig({
       output: {
         manualChunks: {
           'react-vendor': ['react', 'react-dom'],
+          'query-vendor': ['@tanstack/react-query', '@tanstack/react-virtual'],
+          'radix-vendor': [
+            '@radix-ui/react-dialog',
+            '@radix-ui/react-dropdown-menu',
+            '@radix-ui/react-scroll-area',
+          ],
           'highlight-vendor': ['highlight.js'],
           'motion-vendor': ['motion'],
+          'utils-vendor': ['dompurify', 'clsx', 'tailwind-merge', 'class-variance-authority'],
         },
       },
     },
