@@ -117,5 +117,19 @@ func runMigrations(db *sql.DB) error {
 		return fmt.Errorf("drop entries_au trigger: %w", err)
 	}
 
+	// Migration 4: Add readable_content column to entries for readability-extracted content
+	err = db.QueryRow(`
+		SELECT COUNT(*) FROM pragma_table_info('entries') WHERE name = 'readable_content'
+	`).Scan(&count)
+	if err != nil {
+		return fmt.Errorf("check readable_content column: %w", err)
+	}
+
+	if count == 0 {
+		if _, err := db.Exec(`ALTER TABLE entries ADD COLUMN readable_content TEXT`); err != nil {
+			return fmt.Errorf("add readable_content column: %w", err)
+		}
+	}
+
 	return nil
 }

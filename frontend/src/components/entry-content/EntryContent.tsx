@@ -1,6 +1,7 @@
-import { useEffect } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useEntry, useMarkAsRead } from '@/hooks/useEntries'
 import { useEntryContentScroll } from '@/hooks/useEntryContentScroll'
+import { fetchReadableContent } from '@/api'
 import { EntryContentHeader } from './EntryContentHeader'
 import { EntryContentBody } from './EntryContentBody'
 
@@ -13,11 +14,42 @@ export function EntryContent({ entryId }: EntryContentProps) {
   const { mutate: markAsRead } = useMarkAsRead()
   const { scrollRef, isAtTop } = useEntryContentScroll(entryId)
 
+  const [isReadableLoading, setIsReadableLoading] = useState(false)
+  const [localReadableContent, setLocalReadableContent] = useState<string | null>(null)
+  const [showReadable, setShowReadable] = useState(false)
+
   useEffect(() => {
     if (entry && !entry.read) {
       markAsRead({ id: entry.id, read: true })
     }
   }, [entry, markAsRead])
+
+  const readableContent = localReadableContent || entry?.readableContent
+  const hasReadableContent = !!readableContent
+
+  const handleToggleReadable = useCallback(async () => {
+    if (!entry) return
+
+    if (hasReadableContent) {
+      setShowReadable((prev) => !prev)
+      return
+    }
+
+    if (!entry.url || isReadableLoading) return
+    setIsReadableLoading(true)
+    try {
+      const content = await fetchReadableContent(entry.id)
+      setLocalReadableContent(content)
+      setShowReadable(true)
+    } catch {
+      // Silently fail
+    } finally {
+      setIsReadableLoading(false)
+    }
+  }, [entry, hasReadableContent, isReadableLoading])
+
+  const displayContent = hasReadableContent && showReadable ? readableContent : entry?.content
+  const isReadableActive = hasReadableContent && showReadable
 
   if (entryId === null) {
     return <EntryContentEmpty />
@@ -33,8 +65,14 @@ export function EntryContent({ entryId }: EntryContentProps) {
 
   return (
     <div className="relative flex h-full flex-col">
-      <EntryContentHeader entry={entry} isAtTop={isAtTop} />
-      <EntryContentBody entry={entry} scrollRef={scrollRef} />
+      <EntryContentHeader
+        entry={entry}
+        isAtTop={isAtTop}
+        isReadableActive={isReadableActive}
+        isLoading={isReadableLoading}
+        onToggleReadable={handleToggleReadable}
+      />
+      <EntryContentBody entry={entry} scrollRef={scrollRef} displayContent={displayContent} />
     </div>
   )
 }

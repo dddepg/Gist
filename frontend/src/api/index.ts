@@ -173,6 +173,13 @@ export async function updateEntryReadStatus(id: number, read: boolean): Promise<
   })
 }
 
+export async function fetchReadableContent(id: number): Promise<string> {
+  const response = await request<{ readableContent: string }>(`/api/entries/${id}/fetch-readable`, {
+    method: 'POST',
+  })
+  return response.readableContent
+}
+
 export async function markAllAsRead(params: MarkAllReadParams): Promise<void> {
   return request<void>('/api/entries/mark-read', {
     method: 'POST',

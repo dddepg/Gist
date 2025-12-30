@@ -26,6 +26,7 @@ type EntryRepository interface {
 	GetByID(ctx context.Context, id int64) (model.Entry, error)
 	List(ctx context.Context, filter EntryListFilter) ([]model.Entry, error)
 	UpdateReadStatus(ctx context.Context, id int64, read bool) error
+	UpdateReadableContent(ctx context.Context, id int64, content string) error
 	MarkAllAsRead(ctx context.Context, feedID *int64, folderID *int64) error
 	GetAllUnreadCounts(ctx context.Context) ([]UnreadCount, error)
 	CreateOrUpdate(ctx context.Context, entry model.Entry) error
@@ -43,7 +44,7 @@ func NewEntryRepository(db dbtx) EntryRepository {
 func (r *entryRepository) GetByID(ctx context.Context, id int64) (model.Entry, error) {
 	row := r.db.QueryRowContext(
 		ctx,
-		`SELECT id, feed_id, title, url, content, author, published_at, read, created_at, updated_at
+		`SELECT id, feed_id, title, url, content, readable_content, author, published_at, read, created_at, updated_at
 		 FROM entries WHERE id = ?`,
 		id,
 	)
@@ -53,7 +54,7 @@ func (r *entryRepository) GetByID(ctx context.Context, id int64) (model.Entry, e
 func (r *entryRepository) List(ctx context.Context, filter EntryListFilter) ([]model.Entry, error) {
 	var args []interface{}
 	query := `
-		SELECT e.id, e.feed_id, e.title, e.url, e.content, e.author,
+		SELECT e.id, e.feed_id, e.title, e.url, e.content, e.readable_content, e.author,
 		       e.published_at, e.read, e.created_at, e.updated_at
 		FROM entries e
 	`
@@ -193,7 +194,7 @@ func scanEntry(row *sql.Row) (model.Entry, error) {
 	var readInt int
 
 	err := row.Scan(
-		&e.ID, &e.FeedID, &e.Title, &e.URL, &e.Content, &e.Author,
+		&e.ID, &e.FeedID, &e.Title, &e.URL, &e.Content, &e.ReadableContent, &e.Author,
 		&publishedAt, &readInt, &createdAt, &updatedAt,
 	)
 	if err != nil {
@@ -214,7 +215,7 @@ func scanEntryRows(rows *sql.Rows) (model.Entry, error) {
 	var readInt int
 
 	err := rows.Scan(
-		&e.ID, &e.FeedID, &e.Title, &e.URL, &e.Content, &e.Author,
+		&e.ID, &e.FeedID, &e.Title, &e.URL, &e.Content, &e.ReadableContent, &e.Author,
 		&publishedAt, &readInt, &createdAt, &updatedAt,
 	)
 	if err != nil {
@@ -279,4 +280,15 @@ func (r *entryRepository) ExistsByURL(ctx context.Context, feedID int64, url str
 		return false, err
 	}
 	return count > 0, nil
+}
+
+func (r *entryRepository) UpdateReadableContent(ctx context.Context, id int64, content string) error {
+	_, err := r.db.ExecContext(
+		ctx,
+		`UPDATE entries SET readable_content = ?, updated_at = ? WHERE id = ?`,
+		content,
+		formatTime(time.Now()),
+		id,
+	)
+	return err
 }

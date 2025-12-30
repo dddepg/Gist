@@ -10,6 +10,7 @@ import type { Entry } from '@/types/api'
 interface EntryContentBodyProps {
   entry: Entry
   scrollRef: RefCallback<HTMLDivElement>
+  displayContent: string | null | undefined
 }
 
 interface SanitizedContentProps {
@@ -169,6 +170,7 @@ const SanitizedContent = memo(function SanitizedContent({
 export function EntryContentBody({
   entry,
   scrollRef,
+  displayContent,
 }: EntryContentBodyProps) {
   const { publishedLong, readingTime } = useEntryMeta(entry)
 
@@ -256,7 +258,7 @@ export function EntryContentBody({
           <hr className="border-border/60" />
         </header>
 
-        <SanitizedContent content={entry.content} />
+        <SanitizedContent content={displayContent} />
       </article>
     </ScrollArea>
   )
