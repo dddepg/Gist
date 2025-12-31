@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { SidebarHeader } from './SidebarHeader'
 import { StarredItem } from './StarredItem'
 import { FeedCategory } from './FeedCategory'
@@ -95,7 +96,7 @@ export function Sidebar({
     <div className="flex h-full flex-col bg-sidebar">
       <SidebarHeader onAddClick={onAddClick} onSettingsClick={() => setIsSettingsOpen(true)} />
 
-      <div className="flex-1 overflow-auto px-1">
+      <ScrollArea className="min-w-0 flex-1" viewportClassName="px-1 [&>div]:!block">
         {/* All Articles */}
         <div
           data-active={isAllSelected}
@@ -158,7 +159,7 @@ export function Sidebar({
             />
           ))}
         </div>
-      </div>
+      </ScrollArea>
 
       <SettingsModal open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
     </div>

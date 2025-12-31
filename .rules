@@ -69,6 +69,7 @@
 | icon_path | TEXT | | 图标文件路径 (如 example.com.png) |
 | etag | TEXT | | HTTP ETag (Conditional GET) |
 | last_modified | TEXT | | HTTP Last-Modified |
+| error_message | TEXT | | 获取/刷新错误信息 |
 | created_at | TEXT | NOT NULL | 创建时间 |
 | updated_at | TEXT | NOT NULL | 更新时间 |
 
