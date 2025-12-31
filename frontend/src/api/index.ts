@@ -324,3 +324,69 @@ export async function testAIConnection(config: AITestRequest): Promise<AITestRes
     body: JSON.stringify(config),
   })
 }
+
+export interface SummarizeRequest {
+  entryId: string
+  content: string
+  title?: string
+  isReadability?: boolean
+}
+
+export interface SummarizeResponse {
+  summary: string
+  cached: boolean
+}
+
+export async function* streamSummary(
+  req: SummarizeRequest,
+  signal?: AbortSignal
+): AsyncGenerator<string | { cached: true; summary: string }> {
+  const url = `${API_BASE_URL}/api/ai/summarize`
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+    signal,
+  })
+
+  if (!response.ok) {
+    const data = await parseResponse(response)
+    const message = isErrorResponse(data)
+      ? data.error
+      : typeof data === 'string'
+        ? data
+        : response.statusText
+    throw new ApiError(message || 'Request failed', response.status)
+  }
+
+  const contentType = response.headers.get('Content-Type') ?? ''
+
+  // If cached, returns JSON
+  if (contentType.includes('application/json')) {
+    const data = (await response.json()) as SummarizeResponse
+    yield { cached: true, summary: data.summary }
+    return
+  }
+
+  // Otherwise, stream the response
+  if (!response.body) {
+    throw new ApiError('No response body', 500)
+  }
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      const text = decoder.decode(value, { stream: true })
+      if (text) {
+        yield text
+      }
+    }
+  } finally {
+    reader.releaseLock()
+  }
+}

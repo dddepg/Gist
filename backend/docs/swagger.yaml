@@ -43,6 +43,8 @@ definitions:
         type: string
       reasoningEffort:
         type: string
+      summaryLanguage:
+        type: string
       thinking:
         type: boolean
       thinkingBudget:
@@ -59,6 +61,8 @@ definitions:
       provider:
         type: string
       reasoningEffort:
+        type: string
+      summaryLanguage:
         type: string
       thinking:
         type: boolean
@@ -248,6 +252,24 @@ definitions:
       count:
         type: integer
     type: object
+  internal_handler.summarizeRequest:
+    properties:
+      content:
+        type: string
+      entryId:
+        type: string
+      isReadability:
+        type: boolean
+      title:
+        type: string
+    type: object
+  internal_handler.summarizeResponse:
+    properties:
+      cached:
+        type: boolean
+      summary:
+        type: string
+    type: object
   internal_handler.unreadCountsResponse:
     properties:
       counts:
@@ -278,6 +300,38 @@ info:
   title: Gist API
   version: "1.0"
 paths:
+  /ai/summarize:
+    post:
+      consumes:
+      - application/json
+      description: Generate an AI summary of the article content. Returns cached result
+        if available, otherwise streams the response.
+      parameters:
+      - description: Summarize request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.summarizeRequest'
+      produces:
+      - application/json
+      - text/event-stream
+      responses:
+        "200":
+          description: Cached summary
+          schema:
+            $ref: '#/definitions/internal_handler.summarizeResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+      summary: Generate AI summary
+      tags:
+      - ai
   /api/proxy/image/{encoded}:
     get:
       description: Proxies external images to avoid triggering anti-crawling mechanisms

@@ -11,6 +11,10 @@ type Provider interface {
 	Test(ctx context.Context) (string, error)
 	// Name returns the provider name.
 	Name() string
+	// SummarizeStream generates a summary using streaming.
+	// Returns two channels: one for text chunks, one for errors.
+	// The text channel is closed when streaming is complete.
+	SummarizeStream(ctx context.Context, systemPrompt, content string) (<-chan string, <-chan error)
 }
 
 // Config holds the configuration for an AI provider.

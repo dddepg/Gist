@@ -81,3 +81,71 @@ func (p *CompatibleProvider) Test(ctx context.Context) (string, error) {
 func (p *CompatibleProvider) Name() string {
 	return ProviderCompatible
 }
+
+// SummarizeStream generates a summary using streaming.
+func (p *CompatibleProvider) SummarizeStream(ctx context.Context, systemPrompt, content string) (<-chan string, <-chan error) {
+	textCh := make(chan string)
+	errCh := make(chan error, 1)
+
+	go func() {
+		defer close(textCh)
+		defer close(errCh)
+
+		messages := []openai.ChatCompletionMessageParamUnion{}
+		if systemPrompt != "" {
+			messages = append(messages, openai.SystemMessage(systemPrompt))
+		}
+		messages = append(messages, openai.UserMessage(content))
+
+		params := openai.ChatCompletionNewParams{
+			Model:    openai.ChatModel(p.model),
+			Messages: messages,
+		}
+
+		var opts []option.RequestOption
+
+		// Build reasoning parameter based on configuration
+		if p.thinking {
+			reasoning := map[string]interface{}{}
+			if p.reasoningEffort != "" {
+				reasoning["effort"] = p.reasoningEffort
+			} else if p.thinkingBudget > 0 {
+				reasoning["max_tokens"] = p.thinkingBudget
+			}
+			if len(reasoning) > 0 {
+				opts = append(opts, option.WithJSONSet("reasoning", reasoning))
+			} else {
+				params.MaxTokens = openai.Int(4096)
+			}
+		} else {
+			params.MaxTokens = openai.Int(4096)
+			opts = append(opts, option.WithJSONSet("reasoning", map[string]interface{}{
+				"enabled": false,
+			}))
+		}
+
+		stream := p.client.Chat.Completions.NewStreaming(ctx, params, opts...)
+
+		for stream.Next() {
+			chunk := stream.Current()
+			for _, choice := range chunk.Choices {
+				if choice.Delta.Content != "" {
+					select {
+					case textCh <- choice.Delta.Content:
+					case <-ctx.Done():
+						return
+					}
+				}
+			}
+		}
+
+		if err := stream.Err(); err != nil {
+			select {
+			case errCh <- err:
+			default:
+			}
+		}
+	}()
+
+	return textCh, errCh
+}

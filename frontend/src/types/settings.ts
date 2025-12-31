@@ -10,6 +10,7 @@ export interface AISettings {
   thinking: boolean;
   thinkingBudget: number;
   reasoningEffort: ReasoningEffort;
+  summaryLanguage: string;
 }
 
 export interface AITestRequest {

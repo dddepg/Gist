@@ -29,6 +29,18 @@ const COMPATIBLE_EFFORT_OPTIONS: { value: ReasoningEffort; label: string }[] = [
   { value: 'none', label: 'None' },
 ]
 
+// Summary language options
+const SUMMARY_LANGUAGE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'zh-CN', label: 'Chinese (Simplified)' },
+  { value: 'zh-TW', label: 'Chinese (Traditional)' },
+  { value: 'en-US', label: 'English' },
+  { value: 'ja', label: 'Japanese' },
+  { value: 'ko', label: 'Korean' },
+  { value: 'es', label: 'Spanish' },
+  { value: 'fr', label: 'French' },
+  { value: 'de', label: 'German' },
+]
+
 export function AISettings() {
   const [settings, setSettings] = useState<AISettingsType | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -332,6 +344,25 @@ export function AISettings() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Summary Language */}
+      <div>
+        <label className="block text-sm font-medium mb-2">Summary Language</label>
+        <select
+          value={settings.summaryLanguage}
+          onChange={(e) => handleChange('summaryLanguage', e.target.value)}
+          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
+        >
+          {SUMMARY_LANGUAGE_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+        <p className="text-xs text-muted-foreground mt-1">
+          The language used for AI-generated summaries
+        </p>
       </div>
 
       {/* Test & Save Buttons */}
