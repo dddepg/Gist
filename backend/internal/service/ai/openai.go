@@ -76,3 +76,56 @@ func (p *OpenAIProvider) isReasoningModel() bool {
 func (p *OpenAIProvider) Name() string {
 	return ProviderOpenAI
 }
+
+// SummarizeStream generates a summary using streaming.
+func (p *OpenAIProvider) SummarizeStream(ctx context.Context, systemPrompt, content string) (<-chan string, <-chan error) {
+	textCh := make(chan string)
+	errCh := make(chan error, 1)
+
+	go func() {
+		defer close(textCh)
+		defer close(errCh)
+
+		messages := []openai.ChatCompletionMessageParamUnion{}
+		if systemPrompt != "" {
+			messages = append(messages, openai.SystemMessage(systemPrompt))
+		}
+		messages = append(messages, openai.UserMessage(content))
+
+		params := openai.ChatCompletionNewParams{
+			Model:    openai.ChatModel(p.model),
+			Messages: messages,
+		}
+
+		// For reasoning models (o1, o3, gpt-5), use reasoning_effort
+		if p.thinking && p.isReasoningModel() && p.reasoningEffort != "" {
+			params.ReasoningEffort = shared.ReasoningEffort(p.reasoningEffort)
+		} else {
+			params.MaxTokens = openai.Int(4096)
+		}
+
+		stream := p.client.Chat.Completions.NewStreaming(ctx, params)
+
+		for stream.Next() {
+			chunk := stream.Current()
+			for _, choice := range chunk.Choices {
+				if choice.Delta.Content != "" {
+					select {
+					case textCh <- choice.Delta.Content:
+					case <-ctx.Done():
+						return
+					}
+				}
+			}
+		}
+
+		if err := stream.Err(); err != nil {
+			select {
+			case errCh <- err:
+			default:
+			}
+		}
+	}()
+
+	return textCh, errCh
+}

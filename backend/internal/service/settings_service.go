@@ -17,6 +17,7 @@ type AISettings struct {
 	Thinking        bool   `json:"thinking"`
 	ThinkingBudget  int    `json:"thinkingBudget"`
 	ReasoningEffort string `json:"reasoningEffort"`
+	SummaryLanguage string `json:"summaryLanguage"`
 }
 
 // Setting keys
@@ -28,6 +29,7 @@ const (
 	keyAIThinking        = "ai.thinking"
 	keyAIThinkingBudget  = "ai.thinking_budget"
 	keyAIReasoningEffort = "ai.reasoning_effort"
+	keyAISummaryLanguage = "ai.summary_language"
 )
 
 // SettingsService provides settings management.
@@ -56,6 +58,7 @@ func (s *settingsService) GetAISettings(ctx context.Context) (*AISettings, error
 		Provider:        ai.ProviderOpenAI, // default
 		ThinkingBudget:  10000,             // default budget
 		ReasoningEffort: "medium",          // default effort
+		SummaryLanguage: "zh-CN",           // default language
 	}
 
 	if val, err := s.getString(ctx, keyAIProvider); err == nil && val != "" {
@@ -79,6 +82,9 @@ func (s *settingsService) GetAISettings(ctx context.Context) (*AISettings, error
 	// Allow empty string to override default (for Compatible Budget mode)
 	if val, err := s.getString(ctx, keyAIReasoningEffort); err == nil {
 		settings.ReasoningEffort = val
+	}
+	if val, err := s.getString(ctx, keyAISummaryLanguage); err == nil && val != "" {
+		settings.SummaryLanguage = val
 	}
 
 	return settings, nil
@@ -112,6 +118,9 @@ func (s *settingsService) SetAISettings(ctx context.Context, settings *AISetting
 	}
 	if err := s.repo.Set(ctx, keyAIReasoningEffort, settings.ReasoningEffort); err != nil {
 		return fmt.Errorf("set reasoning effort: %w", err)
+	}
+	if err := s.repo.Set(ctx, keyAISummaryLanguage, settings.SummaryLanguage); err != nil {
+		return fmt.Errorf("set summary language: %w", err)
 	}
 	return nil
 }

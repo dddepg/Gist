@@ -39,6 +39,7 @@ func main() {
 	feedRepo := repository.NewFeedRepository(dbConn)
 	entryRepo := repository.NewEntryRepository(dbConn)
 	settingsRepo := repository.NewSettingsRepository(dbConn)
+	aiSummaryRepo := repository.NewAISummaryRepository(dbConn)
 
 	iconService := service.NewIconService(cfg.DataDir, feedRepo)
 
@@ -58,6 +59,7 @@ func main() {
 
 	proxyService := service.NewProxyService()
 	settingsService := service.NewSettingsService(settingsRepo)
+	aiService := service.NewAIService(aiSummaryRepo, settingsRepo)
 
 	folderHandler := handler.NewFolderHandler(folderService)
 	feedHandler := handler.NewFeedHandler(feedService, refreshService)
@@ -67,8 +69,9 @@ func main() {
 	iconHandler := handler.NewIconHandler(iconService)
 	proxyHandler := handler.NewProxyHandler(proxyService)
 	settingsHandler := handler.NewSettingsHandler(settingsService)
+	aiHandler := handler.NewAIHandler(aiService)
 
-	router := transport.NewRouter(folderHandler, feedHandler, entryHandler, opmlHandler, iconHandler, proxyHandler, settingsHandler, cfg.StaticDir)
+	router := transport.NewRouter(folderHandler, feedHandler, entryHandler, opmlHandler, iconHandler, proxyHandler, settingsHandler, aiHandler, cfg.StaticDir)
 
 	// Start background scheduler (15 minutes interval)
 	sched := scheduler.New(refreshService, 15*time.Minute)

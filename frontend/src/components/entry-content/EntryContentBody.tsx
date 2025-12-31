@@ -6,12 +6,16 @@ import { useEntryMeta } from '@/hooks/useEntryMeta'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { isSafeUrl } from '@/lib/url'
 import { getProxiedImageUrl } from '@/lib/image-proxy'
+import { AiSummaryBox } from './AiSummaryBox'
 import type { Entry } from '@/types/api'
 
 interface EntryContentBodyProps {
   entry: Entry
   scrollRef: RefCallback<HTMLDivElement>
   displayContent: string | null | undefined
+  aiSummary?: string | null
+  isLoadingSummary?: boolean
+  summaryError?: string | null
 }
 
 interface SanitizedContentProps {
@@ -183,6 +187,9 @@ export function EntryContentBody({
   entry,
   scrollRef,
   displayContent,
+  aiSummary,
+  isLoadingSummary,
+  summaryError,
 }: EntryContentBodyProps) {
   const { publishedLong, readingTime } = useEntryMeta(entry)
 
@@ -269,6 +276,12 @@ export function EntryContentBody({
           </div>
           <hr className="border-border/60" />
         </header>
+
+        <AiSummaryBox
+          content={aiSummary ?? null}
+          isLoading={isLoadingSummary}
+          error={summaryError}
+        />
 
         <SanitizedContent content={displayContent} articleUrl={entry.url} />
       </article>

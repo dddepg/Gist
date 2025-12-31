@@ -1,7 +1,7 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useEntry, useMarkAsRead, useMarkAsStarred } from '@/hooks/useEntries'
 import { useEntryContentScroll } from '@/hooks/useEntryContentScroll'
-import { fetchReadableContent } from '@/api'
+import { fetchReadableContent, streamSummary } from '@/api'
 import { EntryContentHeader } from './EntryContentHeader'
 import { EntryContentBody } from './EntryContentBody'
 
@@ -20,11 +20,34 @@ export function EntryContent({ entryId }: EntryContentProps) {
   const [showReadable, setShowReadable] = useState(false)
   const [readableError, setReadableError] = useState<string | null>(null)
 
+  // AI Summary state
+  const [aiSummary, setAiSummary] = useState<string | null>(null)
+  const [isLoadingSummary, setIsLoadingSummary] = useState(false)
+  const [summaryError, setSummaryError] = useState<string | null>(null)
+  const summaryAbortRef = useRef<AbortController | null>(null)
+  const summaryRequestedRef = useRef(false)
+  const prevReadableActiveRef = useRef(false)
+
   useEffect(() => {
     if (entry && !entry.read) {
       markAsRead({ id: entry.id, read: true })
     }
   }, [entry, markAsRead])
+
+  // Reset AI summary when entry changes
+  useEffect(() => {
+    setAiSummary(null)
+    setSummaryError(null)
+    setIsLoadingSummary(false)
+    // Cancel any ongoing summary request
+    if (summaryAbortRef.current) {
+      summaryAbortRef.current.abort()
+      summaryAbortRef.current = null
+    }
+    // Reset tracking refs
+    summaryRequestedRef.current = false
+    prevReadableActiveRef.current = false
+  }, [entryId])
 
   const readableContent = localReadableContent || entry?.readableContent
   const hasReadableContent = !!readableContent
@@ -61,6 +84,100 @@ export function EntryContent({ entryId }: EntryContentProps) {
     }
   }, [entry, markAsStarred])
 
+  // Core function to generate summary
+  const generateSummary = useCallback(async (forReadability: boolean) => {
+    if (!entry) return
+
+    // Cancel any ongoing request first
+    if (summaryAbortRef.current) {
+      summaryAbortRef.current.abort()
+    }
+
+    // Get the content to summarize
+    const content = forReadability ? readableContent : entry.content
+    if (!content) {
+      setSummaryError('No content to summarize')
+      return
+    }
+
+    setIsLoadingSummary(true)
+    setSummaryError(null)
+    setAiSummary(null)
+    summaryRequestedRef.current = true
+
+    const abortController = new AbortController()
+    summaryAbortRef.current = abortController
+
+    try {
+      const stream = streamSummary(
+        {
+          entryId: entry.id,
+          content,
+          title: entry.title ?? undefined,
+          isReadability: forReadability,
+        },
+        abortController.signal
+      )
+
+      for await (const chunk of stream) {
+        if (typeof chunk === 'object' && 'cached' in chunk) {
+          // Cached response
+          setAiSummary(chunk.summary)
+        } else {
+          // Streaming response
+          setAiSummary(prev => (prev ?? '') + chunk)
+        }
+      }
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        // Request was cancelled, don't update state (new request will handle it)
+        return
+      }
+      const message = err instanceof Error ? err.message : 'Failed to generate summary'
+      setSummaryError(message)
+      setIsLoadingSummary(false)
+      summaryAbortRef.current = null
+      return
+    }
+
+    // Only update state if this request wasn't aborted
+    setIsLoadingSummary(false)
+    summaryAbortRef.current = null
+  }, [entry, readableContent])
+
+  const handleToggleSummary = useCallback(async () => {
+    if (!entry) return
+
+    // If already showing summary, hide it
+    if (aiSummary && !isLoadingSummary) {
+      setAiSummary(null)
+      summaryRequestedRef.current = false
+      return
+    }
+
+    // If loading, cancel the request
+    if (isLoadingSummary && summaryAbortRef.current) {
+      summaryAbortRef.current.abort()
+      summaryAbortRef.current = null
+      setIsLoadingSummary(false)
+      summaryRequestedRef.current = false
+      return
+    }
+
+    await generateSummary(isReadableActive)
+  }, [entry, aiSummary, isLoadingSummary, isReadableActive, generateSummary])
+
+  // Auto-regenerate summary when readability mode changes
+  useEffect(() => {
+    if (prevReadableActiveRef.current !== isReadableActive) {
+      prevReadableActiveRef.current = isReadableActive
+      // If user had requested a summary, regenerate for new mode
+      if (summaryRequestedRef.current && (aiSummary || isLoadingSummary)) {
+        generateSummary(isReadableActive)
+      }
+    }
+  }, [isReadableActive, aiSummary, isLoadingSummary, generateSummary])
+
   if (entryId === null) {
     return <EntryContentEmpty />
   }
@@ -83,8 +200,18 @@ export function EntryContent({ entryId }: EntryContentProps) {
         error={readableError}
         onToggleReadable={handleToggleReadable}
         onToggleStarred={handleToggleStarred}
+        isLoadingSummary={isLoadingSummary}
+        hasSummary={!!aiSummary}
+        onToggleSummary={handleToggleSummary}
       />
-      <EntryContentBody entry={entry} scrollRef={scrollRef} displayContent={displayContent} />
+      <EntryContentBody
+        entry={entry}
+        scrollRef={scrollRef}
+        displayContent={displayContent}
+        aiSummary={aiSummary}
+        isLoadingSummary={isLoadingSummary}
+        summaryError={summaryError}
+      />
     </div>
   )
 }

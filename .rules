@@ -115,6 +115,17 @@
 - `ai.thinking` - 启用思考/推理 (true/false)
 - `ai.thinking_budget` - 思考 token 预算 (Anthropic/Compatible)
 - `ai.reasoning_effort` - 推理强度 (OpenAI/Compatible: none/minimal/low/medium/high/xhigh)
+- `ai.summary_language` - AI 摘要输出语言 (zh-CN/en-US/ja 等)
+
+**ai_summaries** - AI 摘要缓存表
+| 列名 | 类型 | 约束 | 说明 |
+|------|------|------|------|
+| id | INTEGER | PRIMARY KEY | Snowflake ID |
+| entry_id | INTEGER | NOT NULL, FK -> entries(id) ON DELETE CASCADE | 关联文章 |
+| is_readability | INTEGER | NOT NULL DEFAULT 0 | 是否为 Readability 内容 (0/1) |
+| language | TEXT | NOT NULL | 输出语言 |
+| summary | TEXT | NOT NULL | 摘要内容 |
+| created_at | TEXT | NOT NULL | 创建时间 (RFC3339) |
 
 #### 4.2.2 索引
 ```sql
@@ -125,6 +136,7 @@ idx_entries_read         ON entries(read)
 idx_entries_starred      ON entries(starred)
 idx_entries_feed_read    ON entries(feed_id, read)
 idx_entries_feed_url     ON entries(feed_id, url) UNIQUE
+idx_ai_summaries_entry_mode ON ai_summaries(entry_id, is_readability, language) UNIQUE
 ```
 
 #### 4.2.3 触发器

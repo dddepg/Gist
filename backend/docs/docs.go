@@ -15,6 +15,53 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/ai/summarize": {
+            "post": {
+                "description": "Generate an AI summary of the article content. Returns cached result if available, otherwise streams the response.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json",
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "ai"
+                ],
+                "summary": "Generate AI summary",
+                "parameters": [
+                    {
+                        "description": "Summarize request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.summarizeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Cached summary",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.summarizeResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.errorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/proxy/image/{encoded}": {
             "get": {
                 "description": "Proxies external images to avoid triggering anti-crawling mechanisms",
@@ -1085,6 +1132,9 @@ const docTemplate = `{
                 "reasoningEffort": {
                     "type": "string"
                 },
+                "summaryLanguage": {
+                    "type": "string"
+                },
                 "thinking": {
                     "type": "boolean"
                 },
@@ -1109,6 +1159,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "reasoningEffort": {
+                    "type": "string"
+                },
+                "summaryLanguage": {
                     "type": "string"
                 },
                 "thinking": {
@@ -1399,6 +1452,34 @@ const docTemplate = `{
             "properties": {
                 "count": {
                     "type": "integer"
+                }
+            }
+        },
+        "internal_handler.summarizeRequest": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "entryId": {
+                    "type": "string"
+                },
+                "isReadability": {
+                    "type": "boolean"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handler.summarizeResponse": {
+            "type": "object",
+            "properties": {
+                "cached": {
+                    "type": "boolean"
+                },
+                "summary": {
+                    "type": "string"
                 }
             }
         },
