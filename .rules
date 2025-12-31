@@ -100,6 +100,22 @@
 
 *Tokenizer*: `unicode61`
 
+**settings** - 键值配置表
+| 列名 | 类型 | 约束 | 说明 |
+|------|------|------|------|
+| key | TEXT | PRIMARY KEY | 配置键 |
+| value | TEXT | NOT NULL | 配置值 |
+| updated_at | TEXT | NOT NULL | 更新时间 (RFC3339) |
+
+*已使用的配置键*:
+- `ai.provider` - AI 提供商 (openai/anthropic/compatible)
+- `ai.api_key` - API 密钥
+- `ai.base_url` - 自定义 Base URL
+- `ai.model` - 模型名称
+- `ai.thinking` - 启用思考/推理 (true/false)
+- `ai.thinking_budget` - 思考 token 预算 (Anthropic/Compatible)
+- `ai.reasoning_effort` - 推理强度 (OpenAI/Compatible: none/minimal/low/medium/high/xhigh)
+
 #### 4.2.2 索引
 ```sql
 idx_folders_parent_id    ON folders(parent_id)

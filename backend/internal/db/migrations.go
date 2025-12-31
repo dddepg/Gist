@@ -191,5 +191,16 @@ func runMigrations(db *sql.DB) error {
 		}
 	}
 
+	// Migration 9: Create settings table for key-value configuration storage
+	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS settings (
+			key TEXT PRIMARY KEY,
+			value TEXT NOT NULL,
+			updated_at TEXT NOT NULL
+		)
+	`); err != nil {
+		return fmt.Errorf("create settings table: %w", err)
+	}
+
 	return nil
 }
