@@ -11,6 +11,7 @@ import type {
   StarredCountResponse,
   UnreadCountsResponse,
 } from '@/types/api'
+import type { AISettings, AITestRequest, AITestResponse } from '@/types/settings'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? ''
 
@@ -304,4 +305,22 @@ export function watchImportStatus(onUpdate: (task: ImportTask) => void): () => v
 export function exportOPML(): void {
   const url = `${API_BASE_URL}/api/opml/export`
   window.location.href = url
+}
+
+export async function getAISettings(): Promise<AISettings> {
+  return request<AISettings>('/api/settings/ai')
+}
+
+export async function updateAISettings(settings: AISettings): Promise<AISettings> {
+  return request<AISettings>('/api/settings/ai', {
+    method: 'PUT',
+    body: JSON.stringify(settings),
+  })
+}
+
+export async function testAIConnection(config: AITestRequest): Promise<AITestResponse> {
+  return request<AITestResponse>('/api/settings/ai/test', {
+    method: 'POST',
+    body: JSON.stringify(config),
+  })
 }

@@ -31,6 +31,66 @@ definitions:
       total:
         type: integer
     type: object
+  internal_handler.aiSettingsRequest:
+    properties:
+      apiKey:
+        type: string
+      baseUrl:
+        type: string
+      model:
+        type: string
+      provider:
+        type: string
+      reasoningEffort:
+        type: string
+      thinking:
+        type: boolean
+      thinkingBudget:
+        type: integer
+    type: object
+  internal_handler.aiSettingsResponse:
+    properties:
+      apiKey:
+        type: string
+      baseUrl:
+        type: string
+      model:
+        type: string
+      provider:
+        type: string
+      reasoningEffort:
+        type: string
+      thinking:
+        type: boolean
+      thinkingBudget:
+        type: integer
+    type: object
+  internal_handler.aiTestRequest:
+    properties:
+      apiKey:
+        type: string
+      baseUrl:
+        type: string
+      model:
+        type: string
+      provider:
+        type: string
+      reasoningEffort:
+        type: string
+      thinking:
+        type: boolean
+      thinkingBudget:
+        type: integer
+    type: object
+  internal_handler.aiTestResponse:
+    properties:
+      error:
+        type: string
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
   internal_handler.createFeedRequest:
     properties:
       folderId:
@@ -779,6 +839,79 @@ paths:
       summary: Import Status
       tags:
       - opml
+  /settings/ai:
+    get:
+      description: Get the AI provider configuration with masked API keys
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.aiSettingsResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+      summary: Get AI settings
+      tags:
+      - settings
+    put:
+      consumes:
+      - application/json
+      description: Update the AI provider configuration. Empty apiKey keeps existing
+        key.
+      parameters:
+      - description: AI settings
+        in: body
+        name: settings
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.aiSettingsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.aiSettingsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+      summary: Update AI settings
+      tags:
+      - settings
+  /settings/ai/test:
+    post:
+      consumes:
+      - application/json
+      description: Test the AI provider connection with a "Hello world" message
+      parameters:
+      - description: AI test configuration
+        in: body
+        name: config
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.aiTestRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.aiTestResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+      summary: Test AI connection
+      tags:
+      - settings
   /starred-count:
     get:
       description: Get the total count of starred entries

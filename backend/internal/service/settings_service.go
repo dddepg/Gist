@@ -1,0 +1,215 @@
+package service
+
+import (
+	"context"
+	"fmt"
+
+	"gist/backend/internal/repository"
+	"gist/backend/internal/service/ai"
+)
+
+// AISettings holds the AI configuration.
+type AISettings struct {
+	Provider        string `json:"provider"`
+	APIKey          string `json:"apiKey"`
+	BaseURL         string `json:"baseUrl"`
+	Model           string `json:"model"`
+	Thinking        bool   `json:"thinking"`
+	ThinkingBudget  int    `json:"thinkingBudget"`
+	ReasoningEffort string `json:"reasoningEffort"`
+}
+
+// Setting keys
+const (
+	keyAIProvider        = "ai.provider"
+	keyAIAPIKey          = "ai.api_key"
+	keyAIBaseURL         = "ai.base_url"
+	keyAIModel           = "ai.model"
+	keyAIThinking        = "ai.thinking"
+	keyAIThinkingBudget  = "ai.thinking_budget"
+	keyAIReasoningEffort = "ai.reasoning_effort"
+)
+
+// SettingsService provides settings management.
+type SettingsService interface {
+	// GetAISettings returns the AI configuration with masked API keys.
+	GetAISettings(ctx context.Context) (*AISettings, error)
+	// SetAISettings updates the AI configuration.
+	// If apiKey is empty string, it keeps the existing key.
+	SetAISettings(ctx context.Context, settings *AISettings) error
+	// TestAI tests the AI connection with the given configuration.
+	TestAI(ctx context.Context, provider, apiKey, baseURL, model string, thinking bool, thinkingBudget int, reasoningEffort string) (string, error)
+}
+
+type settingsService struct {
+	repo repository.SettingsRepository
+}
+
+// NewSettingsService creates a new settings service.
+func NewSettingsService(repo repository.SettingsRepository) SettingsService {
+	return &settingsService{repo: repo}
+}
+
+// GetAISettings returns the AI configuration with masked API keys.
+func (s *settingsService) GetAISettings(ctx context.Context) (*AISettings, error) {
+	settings := &AISettings{
+		Provider:        ai.ProviderOpenAI, // default
+		ThinkingBudget:  10000,             // default budget
+		ReasoningEffort: "medium",          // default effort
+	}
+
+	if val, err := s.getString(ctx, keyAIProvider); err == nil && val != "" {
+		settings.Provider = val
+	}
+	if val, err := s.getString(ctx, keyAIAPIKey); err == nil && val != "" {
+		settings.APIKey = maskAPIKey(val)
+	}
+	if val, err := s.getString(ctx, keyAIBaseURL); err == nil {
+		settings.BaseURL = val
+	}
+	if val, err := s.getString(ctx, keyAIModel); err == nil {
+		settings.Model = val
+	}
+	if val, err := s.getString(ctx, keyAIThinking); err == nil && val == "true" {
+		settings.Thinking = true
+	}
+	if val, err := s.getInt(ctx, keyAIThinkingBudget); err == nil && val > 0 {
+		settings.ThinkingBudget = val
+	}
+	// Allow empty string to override default (for Compatible Budget mode)
+	if val, err := s.getString(ctx, keyAIReasoningEffort); err == nil {
+		settings.ReasoningEffort = val
+	}
+
+	return settings, nil
+}
+
+// SetAISettings updates the AI configuration.
+func (s *settingsService) SetAISettings(ctx context.Context, settings *AISettings) error {
+	if settings.Provider != "" {
+		if err := s.repo.Set(ctx, keyAIProvider, settings.Provider); err != nil {
+			return fmt.Errorf("set provider: %w", err)
+		}
+	}
+	if err := s.setAPIKey(ctx, keyAIAPIKey, settings.APIKey); err != nil {
+		return fmt.Errorf("set api key: %w", err)
+	}
+	if err := s.repo.Set(ctx, keyAIBaseURL, settings.BaseURL); err != nil {
+		return fmt.Errorf("set base url: %w", err)
+	}
+	if err := s.repo.Set(ctx, keyAIModel, settings.Model); err != nil {
+		return fmt.Errorf("set model: %w", err)
+	}
+	thinkingVal := "false"
+	if settings.Thinking {
+		thinkingVal = "true"
+	}
+	if err := s.repo.Set(ctx, keyAIThinking, thinkingVal); err != nil {
+		return fmt.Errorf("set thinking: %w", err)
+	}
+	if err := s.repo.Set(ctx, keyAIThinkingBudget, fmt.Sprintf("%d", settings.ThinkingBudget)); err != nil {
+		return fmt.Errorf("set thinking budget: %w", err)
+	}
+	if err := s.repo.Set(ctx, keyAIReasoningEffort, settings.ReasoningEffort); err != nil {
+		return fmt.Errorf("set reasoning effort: %w", err)
+	}
+	return nil
+}
+
+// maskAPIKey returns a masked version of the API key for display.
+func maskAPIKey(apiKey string) string {
+	if apiKey == "" {
+		return ""
+	}
+	if len(apiKey) <= 8 {
+		return "***"
+	}
+	// Find prefix (e.g., "sk-" for OpenAI)
+	prefixEnd := 0
+	for i, c := range apiKey {
+		if c == '-' {
+			prefixEnd = i + 1
+			break
+		}
+		if i >= 4 {
+			break
+		}
+	}
+	prefix := apiKey[:prefixEnd]
+	suffix := apiKey[len(apiKey)-3:]
+	return prefix + "***" + suffix
+}
+
+// isMaskedKey checks if a string looks like a masked API key.
+func isMaskedKey(key string) bool {
+	if len(key) == 0 || len(key) >= 20 {
+		return false
+	}
+	for i := 0; i <= len(key)-3; i++ {
+		if key[i:i+3] == "***" {
+			return true
+		}
+	}
+	return false
+}
+
+// TestAI tests the AI connection with the given configuration.
+func (s *settingsService) TestAI(ctx context.Context, provider, apiKey, baseURL, model string, thinking bool, thinkingBudget int, reasoningEffort string) (string, error) {
+	// If apiKey looks like a masked key, try to get the stored key
+	if isMaskedKey(apiKey) {
+		storedKey, err := s.getString(ctx, keyAIAPIKey)
+		if err != nil {
+			return "", fmt.Errorf("get stored api key: %w", err)
+		}
+		apiKey = storedKey
+	}
+
+	cfg := ai.Config{
+		Provider:        provider,
+		APIKey:          apiKey,
+		BaseURL:         baseURL,
+		Model:           model,
+		Thinking:        thinking,
+		ThinkingBudget:  thinkingBudget,
+		ReasoningEffort: reasoningEffort,
+	}
+
+	p, err := ai.NewProvider(cfg)
+	if err != nil {
+		return "", err
+	}
+
+	return p.Test(ctx)
+}
+
+// getString gets a plain string value from settings.
+func (s *settingsService) getString(ctx context.Context, key string) (string, error) {
+	setting, err := s.repo.Get(ctx, key)
+	if err != nil {
+		return "", err
+	}
+	if setting == nil {
+		return "", nil
+	}
+	return setting.Value, nil
+}
+
+// getInt gets an integer value from settings.
+func (s *settingsService) getInt(ctx context.Context, key string) (int, error) {
+	val, err := s.getString(ctx, key)
+	if err != nil || val == "" {
+		return 0, err
+	}
+	var result int
+	_, err = fmt.Sscanf(val, "%d", &result)
+	return result, err
+}
+
+// setAPIKey sets an API key.
+// If the value is empty or looks like a masked key, it keeps the existing key.
+func (s *settingsService) setAPIKey(ctx context.Context, key, value string) error {
+	if value == "" || isMaskedKey(value) {
+		return nil
+	}
+	return s.repo.Set(ctx, key, value)
+}
