@@ -523,3 +523,86 @@ export async function translateContent(
     signal,
   })
 }
+
+// Batch translation types
+export interface BatchTranslateArticle {
+  id: string
+  title: string
+  summary: string
+}
+
+export interface BatchTranslateResult {
+  id: string
+  title: string | null
+  summary: string | null
+  cached?: boolean
+}
+
+/**
+ * Stream batch translation results using NDJSON format.
+ * Each line is a JSON object with the translation result.
+ */
+export async function* streamBatchTranslate(
+  articles: BatchTranslateArticle[],
+  signal?: AbortSignal
+): AsyncGenerator<BatchTranslateResult> {
+  const url = `${API_BASE_URL}/api/ai/translate/batch`
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ articles }),
+    signal,
+  })
+
+  if (!response.ok) {
+    const data = await parseResponse(response)
+    const message = isErrorResponse(data)
+      ? data.error
+      : typeof data === 'string'
+        ? data
+        : response.statusText
+    throw new ApiError(message || 'Request failed', response.status)
+  }
+
+  if (!response.body) {
+    throw new ApiError('No response body', 500)
+  }
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        if (line.trim()) {
+          try {
+            const result = JSON.parse(line) as BatchTranslateResult
+            yield result
+          } catch {
+            // Ignore parse errors
+          }
+        }
+      }
+    }
+
+    // Process remaining buffer
+    if (buffer.trim()) {
+      try {
+        const result = JSON.parse(buffer) as BatchTranslateResult
+        yield result
+      } catch {
+        // Ignore parse errors
+      }
+    }
+  } finally {
+    reader.releaseLock()
+  }
+}

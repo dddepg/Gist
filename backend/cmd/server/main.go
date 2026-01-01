@@ -41,6 +41,7 @@ func main() {
 	settingsRepo := repository.NewSettingsRepository(dbConn)
 	aiSummaryRepo := repository.NewAISummaryRepository(dbConn)
 	aiTranslationRepo := repository.NewAITranslationRepository(dbConn)
+	aiListTranslationRepo := repository.NewAIListTranslationRepository(dbConn)
 
 	iconService := service.NewIconService(cfg.DataDir, feedRepo)
 
@@ -60,7 +61,7 @@ func main() {
 
 	proxyService := service.NewProxyService()
 	settingsService := service.NewSettingsService(settingsRepo)
-	aiService := service.NewAIService(aiSummaryRepo, aiTranslationRepo, settingsRepo)
+	aiService := service.NewAIService(aiSummaryRepo, aiTranslationRepo, aiListTranslationRepo, settingsRepo)
 
 	folderHandler := handler.NewFolderHandler(folderService)
 	feedHandler := handler.NewFeedHandler(feedService, refreshService)

@@ -109,6 +109,52 @@ const docTemplate = `{
                 }
             }
         },
+        "/ai/translate/batch": {
+            "post": {
+                "description": "Translate multiple articles' titles and summaries. Returns NDJSON stream.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/x-ndjson"
+                ],
+                "tags": [
+                    "ai"
+                ],
+                "summary": "Batch translate articles",
+                "parameters": [
+                    {
+                        "description": "Batch translate request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.batchTranslateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/gist_backend_internal_service.BatchTranslateResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.errorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/proxy/image/{encoded}": {
             "get": {
                 "description": "Proxies external images to avoid triggering anti-crawling mechanisms",
@@ -1114,6 +1160,23 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "gist_backend_internal_service.BatchTranslateResult": {
+            "type": "object",
+            "properties": {
+                "cached": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "summary": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
         "gist_backend_internal_service.ImportResult": {
             "type": "object",
             "properties": {
@@ -1167,6 +1230,9 @@ const docTemplate = `{
                 "apiKey": {
                     "type": "string"
                 },
+                "autoTranslate": {
+                    "type": "boolean"
+                },
                 "baseUrl": {
                     "type": "string"
                 },
@@ -1195,6 +1261,9 @@ const docTemplate = `{
             "properties": {
                 "apiKey": {
                     "type": "string"
+                },
+                "autoTranslate": {
+                    "type": "boolean"
                 },
                 "baseUrl": {
                     "type": "string"
@@ -1256,6 +1325,28 @@ const docTemplate = `{
                 },
                 "success": {
                     "type": "boolean"
+                }
+            }
+        },
+        "internal_handler.batchTranslateRequest": {
+            "type": "object",
+            "properties": {
+                "articles": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string"
+                            },
+                            "summary": {
+                                "type": "string"
+                            },
+                            "title": {
+                                "type": "string"
+                            }
+                        }
+                    }
                 }
             }
         },

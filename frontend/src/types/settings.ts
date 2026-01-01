@@ -11,6 +11,7 @@ export interface AISettings {
   thinkingBudget: number;
   reasoningEffort: ReasoningEffort;
   summaryLanguage: string;
+  autoTranslate: boolean;
 }
 
 export interface AITestRequest {

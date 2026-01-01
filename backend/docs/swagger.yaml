@@ -1,5 +1,16 @@
 basePath: /api
 definitions:
+  gist_backend_internal_service.BatchTranslateResult:
+    properties:
+      cached:
+        type: boolean
+      id:
+        type: string
+      summary:
+        type: string
+      title:
+        type: string
+    type: object
   gist_backend_internal_service.ImportResult:
     properties:
       feedsCreated:
@@ -35,6 +46,8 @@ definitions:
     properties:
       apiKey:
         type: string
+      autoTranslate:
+        type: boolean
       baseUrl:
         type: string
       model:
@@ -54,6 +67,8 @@ definitions:
     properties:
       apiKey:
         type: string
+      autoTranslate:
+        type: boolean
       baseUrl:
         type: string
       model:
@@ -94,6 +109,20 @@ definitions:
         type: string
       success:
         type: boolean
+    type: object
+  internal_handler.batchTranslateRequest:
+    properties:
+      articles:
+        items:
+          properties:
+            id:
+              type: string
+            summary:
+              type: string
+            title:
+              type: string
+          type: object
+        type: array
     type: object
   internal_handler.createFeedRequest:
     properties:
@@ -380,6 +409,37 @@ paths:
           schema:
             $ref: '#/definitions/internal_handler.errorResponse'
       summary: Generate AI translation
+      tags:
+      - ai
+  /ai/translate/batch:
+    post:
+      consumes:
+      - application/json
+      description: Translate multiple articles' titles and summaries. Returns NDJSON
+        stream.
+      parameters:
+      - description: Batch translate request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.batchTranslateRequest'
+      produces:
+      - application/x-ndjson
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/gist_backend_internal_service.BatchTranslateResult'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+      summary: Batch translate articles
       tags:
       - ai
   /api/proxy/image/{encoded}:

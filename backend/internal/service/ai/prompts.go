@@ -37,3 +37,18 @@ Rules:
 - NEVER wrap output in markdown code blocks
 - NO leading or trailing whitespace`, language, language, language)
 }
+
+// GetTranslateTextPrompt returns the system prompt for plain text translation.
+func GetTranslateTextPrompt(textType, language string) string {
+	return fmt.Sprintf(`You are an expert translator. Translate the %s into %s.
+
+CRITICAL: You MUST output in %s. This is NON-NEGOTIABLE. Any response not in %s is a FAILURE.
+
+Rules:
+- Output ONLY the translated text in %s, nothing else
+- Preserve the original meaning and tone
+- Keep proper nouns and brand names unchanged
+- NEVER translate URLs
+- NO explanations, NO notes, NO markdown formatting
+- NO leading or trailing newlines`, textType, language, language, language, language)
+}
