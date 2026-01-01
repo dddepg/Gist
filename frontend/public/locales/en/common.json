@@ -52,7 +52,14 @@
     "subscriptions": "Subscriptions",
     "folders": "Folders",
     "ai": "AI",
-    "data": "Data Control"
+    "data": "Data Control",
+    "advanced": "Advanced",
+    "fallback_ua": "Fallback User-Agent",
+    "fallback_ua_description": "User-Agent to use when the default one is rejected by the server (leave empty to disable)",
+    "fallback_ua_placeholder": "e.g. Mozilla/5.0 (Windows NT 10.0; Win64; x64) ...",
+    "save": "Save",
+    "saving": "Saving...",
+    "saved": "Saved"
   },
   "theme": {
     "system": "Follow System",

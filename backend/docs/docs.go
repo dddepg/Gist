@@ -1218,6 +1218,76 @@ const docTemplate = `{
                 }
             }
         },
+        "/settings/general": {
+            "get": {
+                "description": "Get general application settings including fallback user agent",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Get general settings",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.generalSettingsResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.errorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Update general application settings",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Update general settings",
+                "parameters": [
+                    {
+                        "description": "General settings",
+                        "name": "settings",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.generalSettingsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.generalSettingsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.errorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/starred-count": {
             "get": {
                 "description": "Get the total count of starred entries",
@@ -1670,6 +1740,22 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handler.generalSettingsRequest": {
+            "type": "object",
+            "properties": {
+                "fallbackUserAgent": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handler.generalSettingsResponse": {
+            "type": "object",
+            "properties": {
+                "fallbackUserAgent": {
                     "type": "string"
                 }
             }

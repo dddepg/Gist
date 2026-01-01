@@ -52,7 +52,14 @@
     "subscriptions": "订阅",
     "folders": "文件夹",
     "ai": "AI",
-    "data": "数据控制"
+    "data": "数据控制",
+    "advanced": "高级",
+    "fallback_ua": "备用 User-Agent",
+    "fallback_ua_description": "当默认 UA 被服务器拒绝时使用的备用 User-Agent（留空表示不使用备用）",
+    "fallback_ua_placeholder": "例如: Mozilla/5.0 (Windows NT 10.0; Win64; x64) ...",
+    "save": "保存",
+    "saving": "保存中...",
+    "saved": "已保存"
   },
   "theme": {
     "system": "跟随系统",

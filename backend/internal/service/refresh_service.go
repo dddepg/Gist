@@ -15,6 +15,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 
+	"gist/backend/internal/config"
 	"gist/backend/internal/model"
 	"gist/backend/internal/repository"
 )
@@ -69,12 +70,13 @@ type RefreshService interface {
 type refreshService struct {
 	feeds        repository.FeedRepository
 	entries      repository.EntryRepository
+	settings     SettingsService
 	httpClient   *http.Client
 	mu           sync.Mutex
 	isRefreshing bool
 }
 
-func NewRefreshService(feeds repository.FeedRepository, entries repository.EntryRepository, httpClient *http.Client) RefreshService {
+func NewRefreshService(feeds repository.FeedRepository, entries repository.EntryRepository, settings SettingsService, httpClient *http.Client) RefreshService {
 	client := httpClient
 	if client == nil {
 		client = &http.Client{Timeout: 30 * time.Second}
@@ -82,6 +84,7 @@ func NewRefreshService(feeds repository.FeedRepository, entries repository.Entry
 	return &refreshService{
 		feeds:      feeds,
 		entries:    entries,
+		settings:   settings,
 		httpClient: client,
 	}
 }
@@ -161,13 +164,17 @@ func (s *refreshService) RefreshFeed(ctx context.Context, feedID int64) error {
 }
 
 func (s *refreshService) refreshFeedInternal(ctx context.Context, feed model.Feed) error {
+	return s.refreshFeedWithUA(ctx, feed, config.DefaultUserAgent, true)
+}
+
+func (s *refreshService) refreshFeedWithUA(ctx context.Context, feed model.Feed, userAgent string, allowFallback bool) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, feed.URL, nil)
 	if err != nil {
 		errMsg := err.Error()
 		_ = s.feeds.UpdateErrorMessage(ctx, feed.ID, &errMsg)
 		return err
 	}
-	req.Header.Set("User-Agent", "Gist/1.0")
+	req.Header.Set("User-Agent", userAgent)
 
 	// Conditional GET
 	if feed.ETag != nil && *feed.ETag != "" {
@@ -192,6 +199,15 @@ func (s *refreshService) refreshFeedInternal(ctx context.Context, feed model.Fee
 			_ = s.feeds.UpdateErrorMessage(ctx, feed.ID, nil)
 		}
 		return nil
+	}
+
+	// On HTTP error, try fallback UA if available
+	if resp.StatusCode >= http.StatusBadRequest && allowFallback && s.settings != nil {
+		fallbackUA := s.settings.GetFallbackUserAgent(ctx)
+		if fallbackUA != "" {
+			log.Printf("feed %d (%s): HTTP %d, retrying with fallback UA", feed.ID, feed.Title, resp.StatusCode)
+			return s.refreshFeedWithUA(ctx, feed, fallbackUA, false)
+		}
 	}
 
 	if resp.StatusCode >= http.StatusBadRequest {

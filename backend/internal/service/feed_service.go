@@ -13,6 +13,7 @@ import (
 
 	"github.com/mmcdole/gofeed"
 
+	"gist/backend/internal/config"
 	"gist/backend/internal/model"
 	"gist/backend/internal/repository"
 )
@@ -41,15 +42,16 @@ type feedService struct {
 	folders    repository.FolderRepository
 	entries    repository.EntryRepository
 	icons      IconService
+	settings   SettingsService
 	httpClient *http.Client
 }
 
-func NewFeedService(feeds repository.FeedRepository, folders repository.FolderRepository, entries repository.EntryRepository, icons IconService, httpClient *http.Client) FeedService {
+func NewFeedService(feeds repository.FeedRepository, folders repository.FolderRepository, entries repository.EntryRepository, icons IconService, settings SettingsService, httpClient *http.Client) FeedService {
 	client := httpClient
 	if client == nil {
 		client = &http.Client{Timeout: 20 * time.Second}
 	}
-	return &feedService{feeds: feeds, folders: folders, entries: entries, icons: icons, httpClient: client}
+	return &feedService{feeds: feeds, folders: folders, entries: entries, icons: icons, settings: settings, httpClient: client}
 }
 
 func (s *feedService) Add(ctx context.Context, feedURL string, folderID *int64, titleOverride string, feedType string) (model.Feed, error) {
@@ -230,17 +232,29 @@ type feedFetch struct {
 }
 
 func (s *feedService) fetchFeed(ctx context.Context, feedURL string) (feedFetch, error) {
+	return s.fetchFeedWithUA(ctx, feedURL, config.DefaultUserAgent, true)
+}
+
+func (s *feedService) fetchFeedWithUA(ctx context.Context, feedURL string, userAgent string, allowFallback bool) (feedFetch, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, feedURL, nil)
 	if err != nil {
 		return feedFetch{}, ErrFeedFetch
 	}
-	req.Header.Set("User-Agent", "Gist/1.0")
+	req.Header.Set("User-Agent", userAgent)
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		return feedFetch{}, ErrFeedFetch
 	}
 	defer resp.Body.Close()
+
+	// On HTTP error, try fallback UA if available
+	if resp.StatusCode >= http.StatusBadRequest && allowFallback && s.settings != nil {
+		fallbackUA := s.settings.GetFallbackUserAgent(ctx)
+		if fallbackUA != "" {
+			return s.fetchFeedWithUA(ctx, feedURL, fallbackUA, false)
+		}
+	}
 
 	if resp.StatusCode >= http.StatusBadRequest {
 		return feedFetch{}, ErrFeedFetch

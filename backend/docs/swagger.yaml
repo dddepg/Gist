@@ -270,6 +270,16 @@ definitions:
       updatedAt:
         type: string
     type: object
+  internal_handler.generalSettingsRequest:
+    properties:
+      fallbackUserAgent:
+        type: string
+    type: object
+  internal_handler.generalSettingsResponse:
+    properties:
+      fallbackUserAgent:
+        type: string
+    type: object
   internal_handler.importCancelledResponse:
     properties:
       cancelled:
@@ -1166,6 +1176,52 @@ paths:
           schema:
             $ref: '#/definitions/internal_handler.errorResponse'
       summary: Test AI connection
+      tags:
+      - settings
+  /settings/general:
+    get:
+      description: Get general application settings including fallback user agent
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.generalSettingsResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+      summary: Get general settings
+      tags:
+      - settings
+    put:
+      consumes:
+      - application/json
+      description: Update general application settings
+      parameters:
+      - description: General settings
+        in: body
+        name: settings
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.generalSettingsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.generalSettingsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+      summary: Update general settings
       tags:
       - settings
   /starred-count:

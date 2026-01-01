@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"gist/backend/internal/config"
 	"gist/backend/internal/repository"
 )
 
@@ -217,7 +218,7 @@ func (s *iconService) downloadIcon(ctx context.Context, iconURL string) ([]byte,
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "Gist/1.0")
+	req.Header.Set("User-Agent", config.DefaultUserAgent)
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {

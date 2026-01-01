@@ -31,3 +31,7 @@ export interface AITestResponse {
   message?: string;
   error?: string;
 }
+
+export interface GeneralSettings {
+  fallbackUserAgent: string;
+}

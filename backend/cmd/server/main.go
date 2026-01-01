@@ -54,15 +54,6 @@ func main() {
 		}
 	}()
 
-	folderService := service.NewFolderService(folderRepo, feedRepo)
-	feedService := service.NewFeedService(feedRepo, folderRepo, entryRepo, iconService, nil)
-	entryService := service.NewEntryService(entryRepo, feedRepo, folderRepo)
-	readabilityService := service.NewReadabilityService(entryRepo)
-	opmlService := service.NewOPMLService(folderService, feedService, folderRepo, feedRepo)
-	refreshService := service.NewRefreshService(feedRepo, entryRepo, nil)
-
-	proxyService := service.NewProxyService()
-
 	// Initialize rate limiter with stored setting
 	initialRateLimit := ai.DefaultRateLimit
 	if setting, err := settingsRepo.Get(context.Background(), "ai.rate_limit"); err == nil && setting != nil {
@@ -75,6 +66,15 @@ func main() {
 	rateLimiter := ai.NewRateLimiter(initialRateLimit)
 
 	settingsService := service.NewSettingsService(settingsRepo, rateLimiter)
+
+	folderService := service.NewFolderService(folderRepo, feedRepo)
+	feedService := service.NewFeedService(feedRepo, folderRepo, entryRepo, iconService, settingsService, nil)
+	entryService := service.NewEntryService(entryRepo, feedRepo, folderRepo)
+	readabilityService := service.NewReadabilityService(entryRepo)
+	opmlService := service.NewOPMLService(folderService, feedService, folderRepo, feedRepo)
+	refreshService := service.NewRefreshService(feedRepo, entryRepo, settingsService, nil)
+
+	proxyService := service.NewProxyService()
 	aiService := service.NewAIService(aiSummaryRepo, aiTranslationRepo, aiListTranslationRepo, settingsRepo, rateLimiter)
 
 	folderHandler := handler.NewFolderHandler(folderService)

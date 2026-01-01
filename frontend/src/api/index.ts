@@ -12,7 +12,7 @@ import type {
   StarredCountResponse,
   UnreadCountsResponse,
 } from '@/types/api'
-import type { AISettings, AITestRequest, AITestResponse } from '@/types/settings'
+import type { AISettings, AITestRequest, AITestResponse, GeneralSettings } from '@/types/settings'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? ''
 
@@ -345,6 +345,17 @@ export async function testAIConnection(config: AITestRequest): Promise<AITestRes
   return request<AITestResponse>('/api/settings/ai/test', {
     method: 'POST',
     body: JSON.stringify(config),
+  })
+}
+
+export async function getGeneralSettings(): Promise<GeneralSettings> {
+  return request<GeneralSettings>('/api/settings/general')
+}
+
+export async function updateGeneralSettings(settings: GeneralSettings): Promise<GeneralSettings> {
+  return request<GeneralSettings>('/api/settings/general', {
+    method: 'PUT',
+    body: JSON.stringify(settings),
   })
 }
 
