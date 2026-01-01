@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useTheme, type Theme } from '@/hooks/useTheme'
+import { getGeneralSettings, updateGeneralSettings } from '@/api'
 import { cn } from '@/lib/utils'
 
 type Language = 'zh' | 'en'
@@ -7,6 +9,31 @@ type Language = 'zh' | 'en'
 export function GeneralSettings() {
   const { t, i18n } = useTranslation()
   const { theme, setTheme } = useTheme()
+  const [fallbackUA, setFallbackUA] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle')
+
+  useEffect(() => {
+    getGeneralSettings().then((settings) => {
+      setFallbackUA(settings.fallbackUserAgent || '')
+    }).catch(() => {
+      // ignore
+    })
+  }, [])
+
+  const handleSaveFallbackUA = async () => {
+    setIsSaving(true)
+    setSaveStatus('idle')
+    try {
+      await updateGeneralSettings({ fallbackUserAgent: fallbackUA })
+      setSaveStatus('success')
+      setTimeout(() => setSaveStatus('idle'), 2000)
+    } catch {
+      setSaveStatus('error')
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   const themeOptions: { value: Theme; label: string; icon: React.ReactNode }[] = [
     {
@@ -121,6 +148,46 @@ export function GeneralSettings() {
                   <span>{option.label}</span>
                 </button>
               ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Advanced Section */}
+      <section>
+        <div className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          {t('settings.advanced')}
+        </div>
+        <div className="space-y-3">
+          <div>
+            <div className="text-sm font-medium">{t('settings.fallback_ua')}</div>
+            <div className="mb-2 text-xs text-muted-foreground">{t('settings.fallback_ua_description')}</div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={fallbackUA}
+                onChange={(e) => setFallbackUA(e.target.value)}
+                placeholder={t('settings.fallback_ua_placeholder')}
+                className={cn(
+                  'flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm',
+                  'placeholder:text-muted-foreground/50',
+                  'focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary'
+                )}
+              />
+              <button
+                type="button"
+                onClick={handleSaveFallbackUA}
+                disabled={isSaving}
+                className={cn(
+                  'rounded-md px-4 py-2 text-sm font-medium transition-colors',
+                  'bg-primary text-primary-foreground hover:bg-primary/90',
+                  'disabled:cursor-not-allowed disabled:opacity-50',
+                  saveStatus === 'success' && 'bg-green-600 hover:bg-green-600',
+                  saveStatus === 'error' && 'bg-destructive hover:bg-destructive'
+                )}
+              >
+                {isSaving ? t('settings.saving') : saveStatus === 'success' ? t('settings.saved') : t('settings.save')}
+              </button>
             </div>
           </div>
         </div>

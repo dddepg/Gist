@@ -58,6 +58,14 @@ type aiTestResponse struct {
 	Error   string `json:"error,omitempty"`
 }
 
+type generalSettingsResponse struct {
+	FallbackUserAgent string `json:"fallbackUserAgent"`
+}
+
+type generalSettingsRequest struct {
+	FallbackUserAgent string `json:"fallbackUserAgent"`
+}
+
 func NewSettingsHandler(service service.SettingsService) *SettingsHandler {
 	return &SettingsHandler{service: service}
 }
@@ -66,6 +74,8 @@ func (h *SettingsHandler) RegisterRoutes(g *echo.Group) {
 	g.GET("/settings/ai", h.GetAISettings)
 	g.PUT("/settings/ai", h.UpdateAISettings)
 	g.POST("/settings/ai/test", h.TestAI)
+	g.GET("/settings/general", h.GetGeneralSettings)
+	g.PUT("/settings/general", h.UpdateGeneralSettings)
 }
 
 // GetAISettings returns the AI configuration.
@@ -173,4 +183,53 @@ func (h *SettingsHandler) TestAI(c echo.Context) error {
 		Success: true,
 		Message: response,
 	})
+}
+
+// GetGeneralSettings returns the general settings.
+// @Summary Get general settings
+// @Description Get general application settings including fallback user agent
+// @Tags settings
+// @Produce json
+// @Success 200 {object} generalSettingsResponse
+// @Failure 500 {object} errorResponse
+// @Router /settings/general [get]
+func (h *SettingsHandler) GetGeneralSettings(c echo.Context) error {
+	settings, err := h.service.GetGeneralSettings(c.Request().Context())
+	if err != nil {
+		c.Logger().Error(err)
+		return c.JSON(http.StatusInternalServerError, errorResponse{Error: "failed to get settings"})
+	}
+
+	return c.JSON(http.StatusOK, generalSettingsResponse{
+		FallbackUserAgent: settings.FallbackUserAgent,
+	})
+}
+
+// UpdateGeneralSettings updates the general settings.
+// @Summary Update general settings
+// @Description Update general application settings
+// @Tags settings
+// @Accept json
+// @Produce json
+// @Param settings body generalSettingsRequest true "General settings"
+// @Success 200 {object} generalSettingsResponse
+// @Failure 400 {object} errorResponse
+// @Failure 500 {object} errorResponse
+// @Router /settings/general [put]
+func (h *SettingsHandler) UpdateGeneralSettings(c echo.Context) error {
+	var req generalSettingsRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, errorResponse{Error: "invalid request"})
+	}
+
+	settings := &service.GeneralSettings{
+		FallbackUserAgent: req.FallbackUserAgent,
+	}
+
+	if err := h.service.SetGeneralSettings(c.Request().Context(), settings); err != nil {
+		c.Logger().Error(err)
+		return c.JSON(http.StatusInternalServerError, errorResponse{Error: "failed to save settings"})
+	}
+
+	return h.GetGeneralSettings(c)
 }

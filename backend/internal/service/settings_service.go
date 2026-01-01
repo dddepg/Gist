@@ -23,6 +23,11 @@ type AISettings struct {
 	RateLimit       int    `json:"rateLimit"`
 }
 
+// GeneralSettings holds general application settings.
+type GeneralSettings struct {
+	FallbackUserAgent string `json:"fallbackUserAgent"`
+}
+
 // Setting keys
 const (
 	keyAIProvider        = "ai.provider"
@@ -36,6 +41,8 @@ const (
 	keyAIAutoTranslate   = "ai.auto_translate"
 	keyAIAutoSummary     = "ai.auto_summary"
 	keyAIRateLimit       = "ai.rate_limit"
+
+	keyFallbackUserAgent = "general.fallback_user_agent"
 )
 
 // SettingsService provides settings management.
@@ -47,6 +54,12 @@ type SettingsService interface {
 	SetAISettings(ctx context.Context, settings *AISettings) error
 	// TestAI tests the AI connection with the given configuration.
 	TestAI(ctx context.Context, provider, apiKey, baseURL, model string, thinking bool, thinkingBudget int, reasoningEffort string) (string, error)
+	// GetGeneralSettings returns the general settings.
+	GetGeneralSettings(ctx context.Context) (*GeneralSettings, error)
+	// SetGeneralSettings updates the general settings.
+	SetGeneralSettings(ctx context.Context, settings *GeneralSettings) error
+	// GetFallbackUserAgent returns the fallback user agent if set.
+	GetFallbackUserAgent(ctx context.Context) string
 }
 
 type settingsService struct {
@@ -264,4 +277,33 @@ func (s *settingsService) setAPIKey(ctx context.Context, key, value string) erro
 		return nil
 	}
 	return s.repo.Set(ctx, key, value)
+}
+
+// GetGeneralSettings returns the general settings.
+func (s *settingsService) GetGeneralSettings(ctx context.Context) (*GeneralSettings, error) {
+	settings := &GeneralSettings{}
+
+	if val, err := s.getString(ctx, keyFallbackUserAgent); err == nil {
+		settings.FallbackUserAgent = val
+	}
+
+	return settings, nil
+}
+
+// SetGeneralSettings updates the general settings.
+func (s *settingsService) SetGeneralSettings(ctx context.Context, settings *GeneralSettings) error {
+	if err := s.repo.Set(ctx, keyFallbackUserAgent, settings.FallbackUserAgent); err != nil {
+		return fmt.Errorf("set fallback user agent: %w", err)
+	}
+	return nil
+}
+
+// GetFallbackUserAgent returns the fallback user agent if set.
+// Returns empty string if disabled (user hasn't set one).
+func (s *settingsService) GetFallbackUserAgent(ctx context.Context) string {
+	val, err := s.getString(ctx, keyFallbackUserAgent)
+	if err != nil || val == "" {
+		return ""
+	}
+	return val
 }

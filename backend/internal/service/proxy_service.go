@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"gist/backend/internal/config"
 )
 
 const proxyTimeout = 15 * time.Second
@@ -61,7 +63,7 @@ func (s *proxyService) FetchImage(ctx context.Context, imageURL string) (*ProxyR
 	}
 
 	// Set headers to mimic browser
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+	req.Header.Set("User-Agent", config.ChromeUserAgent)
 	req.Header.Set("Accept", "image/*,*/*;q=0.8")
 	req.Header.Set("Referer", parsedURL.Scheme+"://"+parsedURL.Host+"/")
 

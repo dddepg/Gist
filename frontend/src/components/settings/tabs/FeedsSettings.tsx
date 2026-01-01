@@ -312,16 +312,16 @@ export function FeedsSettings() {
                         )}
                       </button>
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="max-w-[200px] px-3 py-2">
                       <div className="flex items-center gap-2">
                         {feed.iconPath ? (
                           <img
                             src={`/icons/${feed.iconPath}`}
                             alt=""
-                            className="size-4 rounded object-contain"
+                            className="size-4 shrink-0 rounded object-contain"
                           />
                         ) : (
-                          <div className="flex size-4 items-center justify-center rounded bg-muted text-muted-foreground">
+                          <div className="flex size-4 shrink-0 items-center justify-center rounded bg-muted text-muted-foreground">
                             <svg
                               className="size-3"
                               fill="none"

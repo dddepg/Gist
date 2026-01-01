@@ -5,6 +5,21 @@ import (
 	"path/filepath"
 )
 
+const (
+	AppName    = "Gist"
+	AppVersion = "1.0.0"
+	AppRepo    = "https://github.com/9bingyin/Gist"
+)
+
+// GistUserAgent identifies as Gist RSS reader
+var GistUserAgent = "Mozilla/5.0 (compatible; " + AppName + "/" + AppVersion + "; +" + AppRepo + ")"
+
+// ChromeUserAgent for image proxy and readability fetching
+const ChromeUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+
+// DefaultUserAgent for RSS fetching
+var DefaultUserAgent = GistUserAgent
+
 type Config struct {
 	Addr      string
 	DBPath    string

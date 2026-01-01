@@ -15,6 +15,7 @@ import (
 	"github.com/microcosm-cc/bluemonday"
 	readability "codeberg.org/readeck/go-readability/v2"
 
+	"gist/backend/internal/config"
 	"gist/backend/internal/repository"
 )
 
@@ -68,7 +69,7 @@ func (s *readabilityService) FetchReadableContent(ctx context.Context, entryID i
 	if err != nil {
 		return "", ErrFeedFetch
 	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36")
+	req.Header.Set("User-Agent", config.ChromeUserAgent)
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
