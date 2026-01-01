@@ -70,8 +70,9 @@ type starredCountResponse struct {
 }
 
 type markAllReadRequest struct {
-	FeedID   *string `json:"feedId,omitempty"`
-	FolderID *string `json:"folderId,omitempty"`
+	FeedID      *string `json:"feedId,omitempty"`
+	FolderID    *string `json:"folderId,omitempty"`
+	ContentType *string `json:"contentType,omitempty"`
 }
 
 type unreadCountsResponse struct {
@@ -249,7 +250,7 @@ func (h *EntryHandler) FetchReadable(c echo.Context) error {
 
 // MarkAllAsRead marks all entries as read for a feed or folder.
 // @Summary Mark all as read
-// @Description Mark all entries as read, optionally filtered by feed or folder
+// @Description Mark all entries as read, optionally filtered by feed, folder, or content type
 // @Tags entries
 // @Accept json
 // @Produce json
@@ -279,7 +280,17 @@ func (h *EntryHandler) MarkAllAsRead(c echo.Context) error {
 		folderID = &id
 	}
 
-	if err := h.service.MarkAllAsRead(c.Request().Context(), feedID, folderID); err != nil {
+	// Validate contentType if provided
+	var contentType *string
+	if req.ContentType != nil {
+		ct := *req.ContentType
+		if ct != "article" && ct != "picture" && ct != "notification" {
+			return c.JSON(http.StatusBadRequest, errorResponse{Error: "invalid contentType"})
+		}
+		contentType = &ct
+	}
+
+	if err := h.service.MarkAllAsRead(c.Request().Context(), feedID, folderID, contentType); err != nil {
 		return writeServiceError(c, err)
 	}
 

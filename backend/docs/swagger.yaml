@@ -292,6 +292,8 @@ definitions:
     type: object
   internal_handler.markAllReadRequest:
     properties:
+      contentType:
+        type: string
       feedId:
         type: string
       folderId:
@@ -679,7 +681,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Mark all entries as read, optionally filtered by feed or folder
+      description: Mark all entries as read, optionally filtered by feed, folder,
+        or content type
       parameters:
       - description: Filter criteria
         in: body
