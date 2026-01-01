@@ -9,7 +9,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { SidebarHeader } from './SidebarHeader'
-import { StarredItem } from './StarredItem'
 import { FeedCategory } from './FeedCategory'
 import { FeedItem } from './FeedItem'
 import { SettingsModal } from '@/components/settings'
@@ -249,7 +248,13 @@ export function Sidebar({
 
   return (
     <div className="flex h-full flex-col bg-sidebar">
-      <SidebarHeader onAddClick={() => onAddClick?.(contentType)} onSettingsClick={() => setIsSettingsOpen(true)} />
+      <SidebarHeader
+        onAddClick={() => onAddClick?.(contentType)}
+        starredCount={starredCountData?.count}
+        isStarredSelected={isStarredSelected}
+        onStarredClick={onSelectStarred}
+        onSettingsClick={() => setIsSettingsOpen(true)}
+      />
 
       {/* Content Type Switcher */}
       <div className="relative mb-2 mt-3">
@@ -322,15 +327,8 @@ export function Sidebar({
             transition={{ type: 'spring', duration: 0.4, bounce: 0.15 }}
             className="absolute inset-0 overflow-y-auto px-1 py-2 space-y-1"
           >
-            {/* Starred section */}
-            <StarredItem
-              isActive={isStarredSelected}
-              count={starredCountData?.count ?? 0}
-              onClick={onSelectStarred}
-            />
-
             {/* Feed categories header with sort */}
-            <div className="mt-3 flex items-center justify-between px-2.5">
+            <div className="flex items-center justify-between px-2.5">
               <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground/70">
                 {t('sidebar.feeds')}
               </span>

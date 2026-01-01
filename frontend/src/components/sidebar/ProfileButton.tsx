@@ -25,6 +25,9 @@ const menuItemStyles = cn(
 interface ProfileButtonProps {
   avatarUrl?: string
   userName?: string
+  starredCount?: number
+  isStarredSelected?: boolean
+  onStarredClick?: () => void
   onSettingsClick?: () => void
   onLogoutClick?: () => void
 }
@@ -132,6 +135,9 @@ TransitionAvatar.displayName = 'TransitionAvatar'
 export function ProfileButton({
   avatarUrl,
   userName = 'User',
+  starredCount = 0,
+  isStarredSelected = false,
+  onStarredClick,
   onSettingsClick,
   onLogoutClick,
 }: ProfileButtonProps) {
@@ -184,9 +190,6 @@ export function ProfileButton({
               <div className="max-w-[20ch] truncate text-lg font-semibold tracking-tight text-foreground">
                 {userName}
               </div>
-              <div className="mt-0.5 flex items-center justify-center gap-1 text-xs font-medium text-muted-foreground/80">
-                  <span>{t('user.free_plan')}</span>
-              </div>
             </div>
         </DropdownMenuLabel>
 
@@ -198,6 +201,22 @@ export function ProfileButton({
              <i className="size-4 rounded-full border border-current opacity-50" />
           </span>
           <span>{t('user.profile')}</span>
+        </DropdownMenuItem>
+
+        {/* Starred */}
+        <DropdownMenuItem
+          className={cn(menuItemStyles, isStarredSelected && 'bg-accent/30')}
+          onSelect={onStarredClick}
+        >
+          <span className="inline-flex size-4 items-center justify-center">
+            <svg className="size-4 -translate-y-px text-amber-500" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+            </svg>
+          </span>
+          <span>{t('sidebar.starred')}</span>
+          {starredCount > 0 && (
+            <span className="ml-auto text-xs text-muted-foreground">{starredCount}</span>
+          )}
         </DropdownMenuItem>
 
         <DropdownMenuSeparator className="bg-border/50" />

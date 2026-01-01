@@ -13,7 +13,10 @@ interface SidebarHeaderProps {
   title?: string
   avatarUrl?: string
   userName?: string
+  starredCount?: number
+  isStarredSelected?: boolean
   onAddClick?: () => void
+  onStarredClick?: () => void
   onSettingsClick?: () => void
   onLogoutClick?: () => void
 }
@@ -50,7 +53,10 @@ export function SidebarHeader({
   title = 'Gist',
   avatarUrl,
   userName = 'User',
+  starredCount,
+  isStarredSelected,
   onAddClick,
+  onStarredClick,
   onSettingsClick,
   onLogoutClick,
 }: SidebarHeaderProps) {
@@ -80,6 +86,9 @@ export function SidebarHeader({
         <ProfileButton
           avatarUrl={avatarUrl}
           userName={userName}
+          starredCount={starredCount}
+          isStarredSelected={isStarredSelected}
+          onStarredClick={onStarredClick}
           onSettingsClick={onSettingsClick}
           onLogoutClick={onLogoutClick}
         />

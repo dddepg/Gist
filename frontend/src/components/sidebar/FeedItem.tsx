@@ -89,7 +89,7 @@ export function FeedItem({
   return (
     <div
       data-active={isActive}
-      className={cn(feedItemStyles, 'group relative py-0.5', className)}
+      className={cn(feedItemStyles, 'group relative py-0.5 pr-7', className)}
       onClick={onClick}
     >
       <div className={cn('flex min-w-0 flex-1 items-center gap-2', hasError && 'text-red-500 dark:text-red-400')}>
@@ -106,12 +106,12 @@ export function FeedItem({
           )}
         </span>
         <span className="truncate">{name}</span>
-        {hasError && <ErrorIcon className="ml-1 size-4 shrink-0" title={errorMessage} />}
       </div>
+      {hasError && <ErrorIcon className="shrink-0 size-3.5 text-red-500" title={errorMessage} />}
       {unreadCount !== undefined && unreadCount > 0 && (
         <span className={cn(
-          'ml-2 shrink-0 text-[0.65rem] tabular-nums text-muted-foreground transition-opacity',
-          menuOpen && 'opacity-0'
+          'shrink-0 text-[0.65rem] tabular-nums text-muted-foreground transition-opacity',
+          (menuOpen || hasError) && 'opacity-0'
         )}>
           {unreadCount}
         </span>
