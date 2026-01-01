@@ -31,7 +31,7 @@ type EntryRepository interface {
 	UpdateReadStatus(ctx context.Context, id int64, read bool) error
 	UpdateStarredStatus(ctx context.Context, id int64, starred bool) error
 	UpdateReadableContent(ctx context.Context, id int64, content string) error
-	MarkAllAsRead(ctx context.Context, feedID *int64, folderID *int64) error
+	MarkAllAsRead(ctx context.Context, feedID *int64, folderID *int64, contentType *string) error
 	GetAllUnreadCounts(ctx context.Context) ([]UnreadCount, error)
 	GetStarredCount(ctx context.Context) (int, error)
 	CreateOrUpdate(ctx context.Context, entry model.Entry) error
@@ -147,7 +147,7 @@ func (r *entryRepository) UpdateReadStatus(ctx context.Context, id int64, read b
 	return err
 }
 
-func (r *entryRepository) MarkAllAsRead(ctx context.Context, feedID *int64, folderID *int64) error {
+func (r *entryRepository) MarkAllAsRead(ctx context.Context, feedID *int64, folderID *int64, contentType *string) error {
 	now := formatTime(time.Now())
 
 	if folderID != nil {
@@ -171,7 +171,19 @@ func (r *entryRepository) MarkAllAsRead(ctx context.Context, feedID *int64, fold
 		return err
 	}
 
-	// Mark all as read
+	// Mark all as read with optional content type filter
+	if contentType != nil {
+		_, err := r.db.ExecContext(
+			ctx,
+			`UPDATE entries SET read = 1, updated_at = ?
+			 WHERE feed_id IN (SELECT id FROM feeds WHERE type = ?) AND read = 0`,
+			now,
+			*contentType,
+		)
+		return err
+	}
+
+	// Mark all as read without filter
 	_, err := r.db.ExecContext(
 		ctx,
 		`UPDATE entries SET read = 1, updated_at = ? WHERE read = 0`,

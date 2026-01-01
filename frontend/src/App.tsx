@@ -79,8 +79,8 @@ function AppContent() {
   }, [navigate])
 
   const handleMarkAllRead = useCallback(() => {
-    markAllAsRead(selectionToParams(selection))
-  }, [markAllAsRead, selection])
+    markAllAsRead(selectionToParams(selection, contentType))
+  }, [markAllAsRead, selection, contentType])
 
   const handleOpenSidebar = useCallback(() => {
     setSidebarOpen(true)

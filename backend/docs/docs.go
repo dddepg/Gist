@@ -274,7 +274,7 @@ const docTemplate = `{
         },
         "/entries/mark-read": {
             "post": {
-                "description": "Mark all entries as read, optionally filtered by feed or folder",
+                "description": "Mark all entries as read, optionally filtered by feed, folder, or content type",
                 "consumes": [
                     "application/json"
                 ],
@@ -1779,6 +1779,9 @@ const docTemplate = `{
         "internal_handler.markAllReadRequest": {
             "type": "object",
             "properties": {
+                "contentType": {
+                    "type": "string"
+                },
                 "feedId": {
                     "type": "string"
                 },

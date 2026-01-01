@@ -77,6 +77,7 @@ export interface StarredCountResponse {
 export interface MarkAllReadParams {
   feedId?: string
   folderId?: string
+  contentType?: ContentType
 }
 
 export interface ApiErrorResponse {

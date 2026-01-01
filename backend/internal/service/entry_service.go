@@ -24,7 +24,7 @@ type EntryService interface {
 	GetByID(ctx context.Context, id int64) (model.Entry, error)
 	MarkAsRead(ctx context.Context, id int64, read bool) error
 	MarkAsStarred(ctx context.Context, id int64, starred bool) error
-	MarkAllAsRead(ctx context.Context, feedID *int64, folderID *int64) error
+	MarkAllAsRead(ctx context.Context, feedID *int64, folderID *int64, contentType *string) error
 	GetUnreadCounts(ctx context.Context) (map[int64]int, error)
 	GetStarredCount(ctx context.Context) (int, error)
 }
@@ -116,7 +116,7 @@ func (s *entryService) MarkAsRead(ctx context.Context, id int64, read bool) erro
 	return s.entries.UpdateReadStatus(ctx, id, read)
 }
 
-func (s *entryService) MarkAllAsRead(ctx context.Context, feedID *int64, folderID *int64) error {
+func (s *entryService) MarkAllAsRead(ctx context.Context, feedID *int64, folderID *int64, contentType *string) error {
 	// Validate feedID exists if provided
 	if feedID != nil {
 		_, err := s.feeds.GetByID(ctx, *feedID)
@@ -139,7 +139,7 @@ func (s *entryService) MarkAllAsRead(ctx context.Context, feedID *int64, folderI
 		}
 	}
 
-	return s.entries.MarkAllAsRead(ctx, feedID, folderID)
+	return s.entries.MarkAllAsRead(ctx, feedID, folderID, contentType)
 }
 
 func (s *entryService) GetUnreadCounts(ctx context.Context) (map[int64]int, error) {
