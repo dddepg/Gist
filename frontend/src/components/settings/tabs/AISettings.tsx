@@ -361,9 +361,26 @@ export function AISettings() {
           ))}
         </select>
         <p className="text-xs text-muted-foreground mt-1">
-          The language used for AI-generated summaries
+          The language used for AI-generated summaries and translations
         </p>
       </div>
+
+      {/* Auto Translate */}
+      <div className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          id="autoTranslate"
+          checked={settings.autoTranslate}
+          onChange={(e) => handleChange('autoTranslate', e.target.checked)}
+          className="size-4 rounded border-border"
+        />
+        <label htmlFor="autoTranslate" className="text-sm font-medium">
+          Auto Translate
+        </label>
+      </div>
+      <p className="text-xs text-muted-foreground -mt-4 ml-6">
+        Automatically translate articles that are not in your target language
+      </p>
 
       {/* Test & Save Buttons */}
       <div className="flex items-center gap-3 pt-2">

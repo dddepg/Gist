@@ -49,6 +49,7 @@ func NewAIHandler(service service.AIService) *AIHandler {
 func (h *AIHandler) RegisterRoutes(g *echo.Group) {
 	g.POST("/ai/summarize", h.Summarize)
 	g.POST("/ai/translate", h.Translate)
+	g.POST("/ai/translate/batch", h.TranslateBatch)
 }
 
 // Summarize generates an AI summary of the content.
@@ -270,6 +271,92 @@ func (h *AIHandler) Translate(c echo.Context) error {
 				data, _ := json.Marshal(errorEvent)
 				fmt.Fprintf(c.Response(), "data: %s\n\n", data)
 				c.Response().Flush()
+				// Continue to receive remaining results
+			}
+
+		case <-ctx.Done():
+			return nil
+		}
+	}
+}
+
+// batchTranslateRequest represents the request body for batch translation.
+type batchTranslateRequest struct {
+	Articles []struct {
+		ID      string `json:"id"`
+		Title   string `json:"title"`
+		Summary string `json:"summary"`
+	} `json:"articles"`
+}
+
+// TranslateBatch translates multiple articles' titles and summaries.
+// @Summary Batch translate articles
+// @Description Translate multiple articles' titles and summaries. Returns NDJSON stream.
+// @Tags ai
+// @Accept json
+// @Produce application/x-ndjson
+// @Param request body batchTranslateRequest true "Batch translate request"
+// @Success 200 {object} service.BatchTranslateResult
+// @Failure 400 {object} errorResponse
+// @Failure 500 {object} errorResponse
+// @Router /ai/translate/batch [post]
+func (h *AIHandler) TranslateBatch(c echo.Context) error {
+	var req batchTranslateRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, errorResponse{Error: "invalid request"})
+	}
+
+	if len(req.Articles) == 0 {
+		return c.JSON(http.StatusBadRequest, errorResponse{Error: "articles is required"})
+	}
+
+	// Limit batch size
+	if len(req.Articles) > 20 {
+		return c.JSON(http.StatusBadRequest, errorResponse{Error: "maximum 20 articles per batch"})
+	}
+
+	ctx := c.Request().Context()
+
+	// Convert to service input
+	articles := make([]service.BatchArticleInput, len(req.Articles))
+	for i, a := range req.Articles {
+		articles[i] = service.BatchArticleInput{
+			ID:      a.ID,
+			Title:   a.Title,
+			Summary: a.Summary,
+		}
+	}
+
+	// Start batch translation
+	resultCh, errCh, err := h.service.TranslateBatch(ctx, articles)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, errorResponse{Error: err.Error()})
+	}
+
+	// Set headers for NDJSON streaming
+	c.Response().Header().Set("Content-Type", "application/x-ndjson")
+	c.Response().Header().Set("Cache-Control", "no-cache")
+	c.Response().Header().Set("Connection", "keep-alive")
+	c.Response().WriteHeader(http.StatusOK)
+
+	// Stream the results
+	for {
+		select {
+		case result, ok := <-resultCh:
+			if !ok {
+				// Channel closed, done
+				return nil
+			}
+
+			// Send result as NDJSON
+			data, _ := json.Marshal(result)
+			c.Response().Write(data)
+			c.Response().Write([]byte("\n"))
+			c.Response().Flush()
+
+		case err := <-errCh:
+			if err != nil {
+				c.Logger().Errorf("batch translate error: %v", err)
 				// Continue to receive remaining results
 			}
 

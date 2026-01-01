@@ -11,6 +11,7 @@ import type { Entry } from '@/types/api'
 
 interface EntryContentBodyProps {
   entry: Entry
+  displayTitle?: string | null
   scrollRef: RefCallback<HTMLDivElement>
   displayContent: string | null | undefined
   aiSummary?: string | null
@@ -185,6 +186,7 @@ const SanitizedContent = memo(function SanitizedContent({
 
 export function EntryContentBody({
   entry,
+  displayTitle,
   scrollRef,
   displayContent,
   aiSummary,
@@ -192,6 +194,7 @@ export function EntryContentBody({
   summaryError,
 }: EntryContentBodyProps) {
   const { publishedLong, readingTime } = useEntryMeta(entry)
+  const title = displayTitle ?? entry.title ?? 'Untitled'
 
   return (
     <ScrollArea
@@ -209,10 +212,10 @@ export function EntryContentBody({
                 rel="noopener noreferrer"
                 className="transition-opacity hover:opacity-80"
               >
-                {entry.title || 'Untitled'}
+                {title}
               </a>
             ) : (
-              entry.title || 'Untitled'
+              title
             )}
           </h1>
 

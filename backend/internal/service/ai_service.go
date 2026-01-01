@@ -25,6 +25,21 @@ type TranslateBlockInfo struct {
 	NeedTranslate bool
 }
 
+// BatchArticleInput represents input for batch translation.
+type BatchArticleInput struct {
+	ID      string
+	Title   string
+	Summary string
+}
+
+// BatchTranslateResult represents a single article's translation result.
+type BatchTranslateResult struct {
+	ID      string  `json:"id"`
+	Title   *string `json:"title"`
+	Summary *string `json:"summary"`
+	Cached  bool    `json:"cached,omitempty"`
+}
+
 // AIService provides AI-related operations like summarization and translation.
 type AIService interface {
 	// GetCachedSummary returns a cached summary if available.
@@ -44,20 +59,30 @@ type AIService interface {
 	TranslateBlocks(ctx context.Context, entryID int64, content, title string, isReadability bool) ([]TranslateBlockInfo, <-chan TranslateBlockResult, <-chan error, error)
 	// SaveTranslation saves a translation to cache.
 	SaveTranslation(ctx context.Context, entryID int64, isReadability bool, content string) error
+	// TranslateBatch translates multiple articles' titles and summaries.
+	// Returns a channel of results and an error channel.
+	TranslateBatch(ctx context.Context, articles []BatchArticleInput) (<-chan BatchTranslateResult, <-chan error, error)
 }
 
 type aiService struct {
-	summaryRepo     repository.AISummaryRepository
-	translationRepo repository.AITranslationRepository
-	settingsRepo    repository.SettingsRepository
+	summaryRepo         repository.AISummaryRepository
+	translationRepo     repository.AITranslationRepository
+	listTranslationRepo repository.AIListTranslationRepository
+	settingsRepo        repository.SettingsRepository
 }
 
 // NewAIService creates a new AI service.
-func NewAIService(summaryRepo repository.AISummaryRepository, translationRepo repository.AITranslationRepository, settingsRepo repository.SettingsRepository) AIService {
+func NewAIService(
+	summaryRepo repository.AISummaryRepository,
+	translationRepo repository.AITranslationRepository,
+	listTranslationRepo repository.AIListTranslationRepository,
+	settingsRepo repository.SettingsRepository,
+) AIService {
 	return &aiService{
-		summaryRepo:     summaryRepo,
-		translationRepo: translationRepo,
-		settingsRepo:    settingsRepo,
+		summaryRepo:         summaryRepo,
+		translationRepo:     translationRepo,
+		listTranslationRepo: listTranslationRepo,
+		settingsRepo:        settingsRepo,
 	}
 }
 
@@ -307,4 +332,174 @@ func (s *aiService) TranslateBlocks(ctx context.Context, entryID int64, content,
 	}()
 
 	return blockInfos, resultCh, errCh, nil
+}
+
+// TranslateBatch translates multiple articles' titles and summaries concurrently.
+// It first checks cache and only translates articles that don't have cached results.
+func (s *aiService) TranslateBatch(ctx context.Context, articles []BatchArticleInput) (<-chan BatchTranslateResult, <-chan error, error) {
+	if len(articles) == 0 {
+		return nil, nil, fmt.Errorf("no articles to translate")
+	}
+
+	// Get language setting
+	language := s.GetSummaryLanguage(ctx)
+
+	// Collect entry IDs for batch cache lookup
+	entryIDs := make([]int64, 0, len(articles))
+	articleMap := make(map[int64]BatchArticleInput)
+	for _, a := range articles {
+		entryID, err := parseEntryID(a.ID)
+		if err != nil {
+			continue
+		}
+		entryIDs = append(entryIDs, entryID)
+		articleMap[entryID] = a
+	}
+
+	// Batch fetch cached translations
+	cachedMap, err := s.listTranslationRepo.GetBatch(ctx, entryIDs, language)
+	if err != nil {
+		// Log error but continue without cache
+		cachedMap = make(map[int64]*model.AIListTranslation)
+	}
+
+	// Get AI configuration (only needed if there are uncached articles)
+	var cfg ai.Config
+	needsTranslation := false
+	for _, entryID := range entryIDs {
+		if _, ok := cachedMap[entryID]; !ok {
+			needsTranslation = true
+			break
+		}
+	}
+
+	if needsTranslation {
+		cfg, err = s.getAIConfig(ctx)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	// Create channels
+	resultCh := make(chan BatchTranslateResult)
+	errCh := make(chan error, len(articles))
+
+	go func() {
+		defer close(resultCh)
+		defer close(errCh)
+
+		var wg sync.WaitGroup
+		sem := make(chan struct{}, 5) // Limit to 5 concurrent translations
+
+	articleLoop:
+		for _, entryID := range entryIDs {
+			if ctx.Err() != nil {
+				break
+			}
+
+			article := articleMap[entryID]
+
+			// Check cache first
+			if cached, ok := cachedMap[entryID]; ok {
+				result := BatchTranslateResult{
+					ID:     article.ID,
+					Title:  &cached.Title,
+					Summary: &cached.Summary,
+					Cached: true,
+				}
+				select {
+				case resultCh <- result:
+				case <-ctx.Done():
+					break articleLoop
+				}
+				continue
+			}
+
+			wg.Add(1)
+
+			// Acquire semaphore
+			select {
+			case sem <- struct{}{}:
+			case <-ctx.Done():
+				wg.Done()
+				break articleLoop
+			}
+
+			go func(a BatchArticleInput, eID int64) {
+				defer wg.Done()
+				defer func() { <-sem }()
+
+				// Create provider for this goroutine
+				provider, err := ai.NewProvider(cfg)
+				if err != nil {
+					select {
+					case errCh <- fmt.Errorf("create provider: %w", err):
+					default:
+					}
+					return
+				}
+
+				// Translate title
+				var translatedTitle *string
+				titleStr := ""
+				if a.Title != "" {
+					titlePrompt := ai.GetTranslateTextPrompt("title", language)
+					translated, err := provider.Complete(ctx, titlePrompt, a.Title)
+					if err != nil {
+						select {
+						case errCh <- fmt.Errorf("translate title for %s: %w", a.ID, err):
+						default:
+						}
+						return
+					}
+					translatedTitle = &translated
+					titleStr = translated
+				}
+
+				// Translate summary
+				var translatedSummary *string
+				summaryStr := ""
+				if a.Summary != "" {
+					summaryPrompt := ai.GetTranslateTextPrompt("summary", language)
+					translated, err := provider.Complete(ctx, summaryPrompt, a.Summary)
+					if err != nil {
+						select {
+						case errCh <- fmt.Errorf("translate summary for %s: %w", a.ID, err):
+						default:
+						}
+						return
+					}
+					translatedSummary = &translated
+					summaryStr = translated
+				}
+
+				// Save to cache
+				if titleStr != "" || summaryStr != "" {
+					_ = s.listTranslationRepo.Save(ctx, eID, language, titleStr, summaryStr)
+				}
+
+				// Send result
+				result := BatchTranslateResult{
+					ID:      a.ID,
+					Title:   translatedTitle,
+					Summary: translatedSummary,
+				}
+
+				select {
+				case resultCh <- result:
+				case <-ctx.Done():
+				}
+			}(article, entryID)
+		}
+
+		wg.Wait()
+	}()
+
+	return resultCh, errCh, nil
+}
+
+func parseEntryID(id string) (int64, error) {
+	var entryID int64
+	_, err := fmt.Sscanf(id, "%d", &entryID)
+	return entryID, err
 }

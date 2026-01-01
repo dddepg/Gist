@@ -18,6 +18,7 @@ type AISettings struct {
 	ThinkingBudget  int    `json:"thinkingBudget"`
 	ReasoningEffort string `json:"reasoningEffort"`
 	SummaryLanguage string `json:"summaryLanguage"`
+	AutoTranslate   bool   `json:"autoTranslate"`
 }
 
 // Setting keys
@@ -30,6 +31,7 @@ const (
 	keyAIThinkingBudget  = "ai.thinking_budget"
 	keyAIReasoningEffort = "ai.reasoning_effort"
 	keyAISummaryLanguage = "ai.summary_language"
+	keyAIAutoTranslate   = "ai.auto_translate"
 )
 
 // SettingsService provides settings management.
@@ -86,6 +88,9 @@ func (s *settingsService) GetAISettings(ctx context.Context) (*AISettings, error
 	if val, err := s.getString(ctx, keyAISummaryLanguage); err == nil && val != "" {
 		settings.SummaryLanguage = val
 	}
+	if val, err := s.getString(ctx, keyAIAutoTranslate); err == nil && val == "true" {
+		settings.AutoTranslate = true
+	}
 
 	return settings, nil
 }
@@ -121,6 +126,13 @@ func (s *settingsService) SetAISettings(ctx context.Context, settings *AISetting
 	}
 	if err := s.repo.Set(ctx, keyAISummaryLanguage, settings.SummaryLanguage); err != nil {
 		return fmt.Errorf("set summary language: %w", err)
+	}
+	autoTranslateVal := "false"
+	if settings.AutoTranslate {
+		autoTranslateVal = "true"
+	}
+	if err := s.repo.Set(ctx, keyAIAutoTranslate, autoTranslateVal); err != nil {
+		return fmt.Errorf("set auto translate: %w", err)
 	}
 	return nil
 }

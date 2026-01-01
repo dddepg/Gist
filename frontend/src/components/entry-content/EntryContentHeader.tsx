@@ -4,6 +4,7 @@ import type { Entry } from '@/types/api'
 
 interface EntryContentHeaderProps {
   entry: Entry
+  displayTitle?: string | null
   isAtTop: boolean
   isReadableActive: boolean
   isLoading: boolean
@@ -20,6 +21,7 @@ interface EntryContentHeaderProps {
 
 export function EntryContentHeader({
   entry,
+  displayTitle,
   isAtTop,
   isReadableActive,
   isLoading,
@@ -34,6 +36,7 @@ export function EntryContentHeader({
   onToggleTranslation,
 }: EntryContentHeaderProps) {
   const safeUrl = entry.url && isSafeUrl(entry.url) ? entry.url : null
+  const title = displayTitle ?? entry.title ?? 'Untitled'
 
   return (
     <div className="absolute inset-x-0 top-0 z-20">
@@ -54,7 +57,7 @@ export function EntryContentHeader({
               isAtTop ? 'translate-y-4 opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
             )}
           >
-            {entry.title || 'Untitled'}
+            {title}
           </div>
         </div>
 

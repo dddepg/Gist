@@ -1,13 +1,17 @@
-import { useEffect, useRef, useMemo } from 'react'
+import { useEffect, useRef, useMemo, useCallback } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useEntriesInfinite } from '@/hooks/useEntries'
 import { useFeeds } from '@/hooks/useFeeds'
 import { useFolders } from '@/hooks/useFolders'
+import { useAISettings } from '@/hooks/useAISettings'
 import { selectionToParams, type SelectionType } from '@/hooks/useSelection'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { EntryListItem } from './EntryListItem'
 import { EntryListHeader } from './EntryListHeader'
-import type { Feed, Folder } from '@/types/api'
+import { needsTranslation } from '@/lib/language-detect'
+import { translateArticlesBatch } from '@/services/translation-service'
+import { translationActions } from '@/stores/translation-store'
+import type { Entry, Feed, Folder } from '@/types/api'
 
 interface EntryListProps {
   selection: SelectionType
@@ -33,8 +37,17 @@ export function EntryList({
 
   const { data: feeds = [] } = useFeeds()
   const { data: folders = [] } = useFolders()
+  const { data: aiSettings } = useAISettings()
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
     useEntriesInfinite({ ...params, unreadOnly })
+
+  // Track translated entries to avoid re-translating
+  const translatedEntries = useRef(new Set<string>())
+  const pendingTranslation = useRef(new Map<string, Entry>())
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const autoTranslate = aiSettings?.autoTranslate ?? false
+  const targetLanguage = aiSettings?.summaryLanguage ?? 'zh-CN'
 
   const feedsMap = useMemo(() => {
     const map = new Map<string, Feed>()
@@ -72,6 +85,74 @@ export function EntryList({
     }
   }, [virtualItems, entries.length, hasNextPage, isFetchingNextPage, fetchNextPage])
 
+  // Function to trigger batch translation for pending entries
+  const triggerBatchTranslation = useCallback(() => {
+    if (pendingTranslation.current.size === 0) return
+
+    const articlesToTranslate = Array.from(pendingTranslation.current.values())
+      .filter((entry) => !translatedEntries.current.has(entry.id))
+      .map((entry) => ({
+        id: entry.id,
+        title: entry.title || '',
+        summary: entry.content ? stripHtmlForSummary(entry.content) : null,
+      }))
+
+    // Mark as translated to prevent re-translating
+    for (const article of articlesToTranslate) {
+      translatedEntries.current.add(article.id)
+    }
+
+    pendingTranslation.current.clear()
+
+    if (articlesToTranslate.length > 0) {
+      translateArticlesBatch(articlesToTranslate, targetLanguage).catch(() => {
+        // On error, allow retry
+        for (const article of articlesToTranslate) {
+          translatedEntries.current.delete(article.id)
+        }
+      })
+    }
+  }, [targetLanguage])
+
+  // Schedule entry for translation when visible
+  const scheduleTranslation = useCallback(
+    (entry: Entry) => {
+      if (!autoTranslate) return
+      if (translatedEntries.current.has(entry.id)) return
+      // Skip if user manually disabled translation for this article
+      if (translationActions.isDisabled(entry.id)) return
+
+      // Check if needs translation
+      const summary = entry.content ? stripHtmlForSummary(entry.content) : null
+      if (!needsTranslation(entry.title || '', summary, targetLanguage)) {
+        translatedEntries.current.add(entry.id)
+        return
+      }
+
+      // Add to pending
+      pendingTranslation.current.set(entry.id, entry)
+
+      // Debounce batch translation
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current)
+      }
+      debounceTimer.current = setTimeout(triggerBatchTranslation, 500)
+    },
+    [autoTranslate, targetLanguage, triggerBatchTranslation]
+  )
+
+  // Trigger translation for visible items
+  useEffect(() => {
+    if (!autoTranslate) return
+
+    for (const virtualRow of virtualItems) {
+      const entry = entries[virtualRow.index]
+      if (entry) {
+        scheduleTranslation(entry)
+      }
+    }
+  }, [virtualItems, entries, autoTranslate, scheduleTranslation])
+
   const title = getListTitle(selection, feedsMap, foldersMap)
   const unreadCount = entries.filter((e) => !e.read).length
 
@@ -106,6 +187,8 @@ export function EntryList({
                   feed={feedsMap.get(entry.feedId)}
                   isSelected={entry.id === selectedEntryId}
                   onClick={() => onSelectEntry(entry.id)}
+                  autoTranslate={autoTranslate}
+                  targetLanguage={targetLanguage}
                   style={{
                     position: 'absolute',
                     top: 0,
@@ -196,4 +279,9 @@ function LoadingMore() {
       </svg>
     </div>
   )
+}
+
+function stripHtmlForSummary(html: string): string {
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  return (doc.body.textContent || '').slice(0, 200)
 }
