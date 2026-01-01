@@ -29,6 +29,11 @@ type updateTypeRequest struct {
 	Type string `json:"type"`
 }
 
+type feedConflictResponse struct {
+	Error        string       `json:"error" example:"feed_exists"`
+	ExistingFeed feedResponse `json:"existingFeed"`
+}
+
 type updateFeedRequest struct {
 	Title    string  `json:"title"`
 	FolderID *string `json:"folderId"`
@@ -86,8 +91,9 @@ func (h *FeedHandler) RegisterRoutes(g *echo.Group) {
 // @Accept json
 // @Produce json
 // @Param feed body createFeedRequest true "Feed creation request"
-// @Success 201 Created {object} feedResponse
+// @Success 201 {object} feedResponse
 // @Failure 400 {object} errorResponse
+// @Failure 409 {object} feedConflictResponse "Feed URL already exists"
 // @Router /feeds [post]
 func (h *FeedHandler) Create(c echo.Context) error {
 	var req createFeedRequest
@@ -110,6 +116,13 @@ func (h *FeedHandler) Create(c echo.Context) error {
 	}
 	feed, err := h.service.Add(c.Request().Context(), req.URL, folderID, req.Title, feedType)
 	if err != nil {
+		var conflictErr *service.FeedConflictError
+		if errors.As(err, &conflictErr) {
+			return c.JSON(http.StatusConflict, feedConflictResponse{
+				Error:        "feed_exists",
+				ExistingFeed: toFeedResponse(conflictErr.ExistingFeed),
+			})
+		}
 		return writeServiceError(c, err)
 	}
 	return c.JSON(http.StatusCreated, toFeedResponse(feed))

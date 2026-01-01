@@ -200,6 +200,14 @@ definitions:
       error:
         type: string
     type: object
+  internal_handler.feedConflictResponse:
+    properties:
+      error:
+        example: feed_exists
+        type: string
+      existingFeed:
+        $ref: '#/definitions/internal_handler.feedResponse'
+    type: object
   internal_handler.feedPreviewResponse:
     properties:
       description:
@@ -760,11 +768,15 @@ paths:
         "201":
           description: Created
           schema:
-            type: Created
+            $ref: '#/definitions/internal_handler.feedResponse'
         "400":
           description: Bad Request
           schema:
             $ref: '#/definitions/internal_handler.errorResponse'
+        "409":
+          description: Feed URL already exists
+          schema:
+            $ref: '#/definitions/internal_handler.feedConflictResponse'
       summary: Create a feed
       tags:
       - feeds

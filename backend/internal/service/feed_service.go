@@ -63,7 +63,7 @@ func (s *feedService) Add(ctx context.Context, feedURL string, folderID *int64, 
 	if existing, err := s.feeds.FindByURL(ctx, trimmedURL); err != nil {
 		return model.Feed{}, fmt.Errorf("check feed url: %w", err)
 	} else if existing != nil {
-		return model.Feed{}, ErrConflict
+		return model.Feed{}, &FeedConflictError{ExistingFeed: *existing}
 	}
 	if folderID != nil {
 		if _, err := s.folders.GetByID(ctx, *folderID); err != nil {

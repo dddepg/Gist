@@ -548,13 +548,19 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "type": "Created"
+                            "$ref": "#/definitions/internal_handler.feedResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/internal_handler.errorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Feed URL already exists",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.feedConflictResponse"
                         }
                     }
                 }
@@ -1634,6 +1640,18 @@ const docTemplate = `{
             "properties": {
                 "error": {
                     "type": "string"
+                }
+            }
+        },
+        "internal_handler.feedConflictResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string",
+                    "example": "feed_exists"
+                },
+                "existingFeed": {
+                    "$ref": "#/definitions/internal_handler.feedResponse"
                 }
             }
         },

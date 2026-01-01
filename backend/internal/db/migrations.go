@@ -63,8 +63,7 @@ CREATE TRIGGER IF NOT EXISTS entries_ai AFTER INSERT ON entries BEGIN
 END;
 
 CREATE TRIGGER IF NOT EXISTS entries_ad AFTER DELETE ON entries BEGIN
-  INSERT INTO entries_fts(entries_fts, rowid, title, content, author, url)
-  VALUES('delete', old.id, old.title, old.content, old.author, old.url);
+  DELETE FROM entries_fts WHERE rowid = old.id;
 END;
 `
 
@@ -285,6 +284,17 @@ func runMigrations(db *sql.DB) error {
 		if _, err := db.Exec(`ALTER TABLE folders ADD COLUMN type TEXT NOT NULL DEFAULT 'article'`); err != nil {
 			return fmt.Errorf("add folders type column: %w", err)
 		}
+	}
+
+	// Migration 15: Fix FTS5 delete trigger (modernc.org/sqlite doesn't support the special insert syntax)
+	// Recreate the trigger with direct DELETE syntax
+	if _, err := db.Exec(`DROP TRIGGER IF EXISTS entries_ad`); err != nil {
+		return fmt.Errorf("drop entries_ad trigger: %w", err)
+	}
+	if _, err := db.Exec(`CREATE TRIGGER IF NOT EXISTS entries_ad AFTER DELETE ON entries BEGIN
+		DELETE FROM entries_fts WHERE rowid = old.id;
+	END`); err != nil {
+		return fmt.Errorf("create entries_ad trigger: %w", err)
 	}
 
 	return nil
