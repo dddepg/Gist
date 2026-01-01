@@ -73,14 +73,13 @@ export function FeedCategory({
       {/* Category header */}
       <div
         data-active={isSelected}
-        className={cn(feedItemStyles, 'group relative py-0.5 pl-2.5')}
+        className={cn(feedItemStyles, 'group relative py-0.5 pl-2.5 pr-7')}
         onClick={onSelect}
       >
         {/* Arrow button - only this toggles expand/collapse */}
         <button
           type="button"
-          data-state={open ? 'open' : 'closed'}
-          className="chevron-group flex h-full items-center"
+          className="flex h-full items-center"
           tabIndex={-1}
           onClick={(e) => {
             e.stopPropagation()
@@ -88,7 +87,7 @@ export function FeedCategory({
           }}
         >
           <span className={sidebarItemIconStyles}>
-            <ChevronIcon className="size-4 transition-transform duration-200 [[data-state=open]>&]:rotate-90" />
+            <ChevronIcon className={cn('size-4 transition-transform duration-200', open && 'rotate-90')} />
           </span>
         </button>
         {/* Folder name - clicking selects the folder */}
