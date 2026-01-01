@@ -153,6 +153,7 @@ func (s *iconService) GetIconPath(filename string) string {
 }
 
 func (s *iconService) BackfillIcons(ctx context.Context) error {
+	// 1. Fetch icons for feeds without icon_path in DB
 	feeds, err := s.feeds.ListWithoutIcon(ctx)
 	if err != nil {
 		return fmt.Errorf("list feeds without icon: %w", err)
@@ -176,6 +177,47 @@ func (s *iconService) BackfillIcons(ctx context.Context) error {
 				continue
 			}
 		}
+	}
+
+	// 2. Re-download missing or stale icon files
+	allFeeds, err := s.feeds.List(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("list all feeds: %w", err)
+	}
+
+	const iconMaxAge = 30 * 24 * time.Hour // 30 days
+	now := time.Now()
+
+	for _, feed := range allFeeds {
+		if feed.IconPath == nil || *feed.IconPath == "" {
+			continue
+		}
+
+		fullPath := filepath.Join(s.dataDir, "icons", *feed.IconPath)
+		info, err := os.Stat(fullPath)
+
+		needRefresh := false
+		if err != nil {
+			// File missing
+			needRefresh = true
+		} else if now.Sub(info.ModTime()) > iconMaxAge {
+			// File older than 30 days
+			needRefresh = true
+		}
+
+		if !needRefresh {
+			continue
+		}
+
+		siteURL := ""
+		if feed.SiteURL != nil {
+			siteURL = *feed.SiteURL
+		}
+		if siteURL == "" {
+			siteURL = feed.URL
+		}
+
+		_ = s.EnsureIcon(ctx, *feed.IconPath, siteURL)
 	}
 
 	return nil
