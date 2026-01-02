@@ -2,6 +2,7 @@ import { memo, useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { getEntryImages } from '@/lib/extract-images'
+import { getProxiedImageUrl } from '@/lib/image-proxy'
 import { useLightboxStore } from '@/stores/lightbox-store'
 import type { Entry, Feed } from '@/types/api'
 
@@ -40,7 +41,7 @@ export const PictureItem = memo(function PictureItem({
   }, [])
 
   const handleClick = useCallback(() => {
-    const images = getEntryImages(entry.thumbnailUrl, entry.content)
+    const images = getEntryImages(entry.thumbnailUrl, entry.content, entry.url ?? undefined)
     if (images.length > 0) {
       openLightbox(entry, feed, images, 0)
     }
@@ -68,7 +69,7 @@ export const PictureItem = memo(function PictureItem({
         style={{ height: imageHeight }}
       >
         <img
-          src={thumbnailUrl}
+          src={getProxiedImageUrl(thumbnailUrl, entry.url ?? undefined)}
           alt={entry.title || ''}
           className={cn(
             'w-full object-cover transition-opacity duration-300',

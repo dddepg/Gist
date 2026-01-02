@@ -1,3 +1,5 @@
+import { getProxiedImageUrl } from './image-proxy'
+
 /**
  * Extract image URLs from HTML content.
  * Filters out data URIs and returns unique URLs.
@@ -38,22 +40,24 @@ function isValidImageUrl(url: string): boolean {
 
 /**
  * Get all images for an entry, combining thumbnailUrl and content images.
+ * All URLs are proxied through the backend to handle anti-bot protection.
  */
-export function getEntryImages(thumbnailUrl?: string, content?: string): string[] {
+export function getEntryImages(thumbnailUrl?: string, content?: string, articleUrl?: string): string[] {
   const images: string[] = []
 
   // Add thumbnail first if it exists
   if (thumbnailUrl) {
-    images.push(thumbnailUrl)
+    images.push(getProxiedImageUrl(thumbnailUrl, articleUrl))
   }
 
   // Extract images from content
   if (content) {
     const contentImages = extractImagesFromHtml(content)
     for (const img of contentImages) {
+      const proxiedImg = getProxiedImageUrl(img, articleUrl)
       // Avoid duplicates
-      if (!images.includes(img)) {
-        images.push(img)
+      if (!images.includes(proxiedImg)) {
+        images.push(proxiedImg)
       }
     }
   }

@@ -19,6 +19,7 @@ import (
 	"gist/backend/internal/scheduler"
 	"gist/backend/internal/service"
 	"gist/backend/internal/service/ai"
+	"gist/backend/internal/service/anubis"
 	"gist/backend/internal/snowflake"
 )
 
@@ -47,15 +48,6 @@ func main() {
 	aiTranslationRepo := repository.NewAITranslationRepository(dbConn)
 	aiListTranslationRepo := repository.NewAIListTranslationRepository(dbConn)
 
-	iconService := service.NewIconService(cfg.DataDir, feedRepo)
-
-	// Backfill icons for existing feeds (run in background)
-	go func() {
-		if err := iconService.BackfillIcons(context.Background()); err != nil {
-			log.Printf("backfill icons: %v", err)
-		}
-	}()
-
 	// Initialize rate limiter with stored setting
 	initialRateLimit := ai.DefaultRateLimit
 	if setting, err := settingsRepo.Get(context.Background(), "ai.rate_limit"); err == nil && setting != nil {
@@ -69,14 +61,27 @@ func main() {
 
 	settingsService := service.NewSettingsService(settingsRepo, rateLimiter)
 
+	// Initialize Anubis solver for bypassing Anubis protection
+	anubisStore := anubis.NewStore(settingsRepo)
+	anubisSolver := anubis.NewSolver(nil, anubisStore)
+
+	iconService := service.NewIconService(cfg.DataDir, feedRepo, anubisSolver)
+
+	// Backfill icons for existing feeds (run in background)
+	go func() {
+		if err := iconService.BackfillIcons(context.Background()); err != nil {
+			log.Printf("backfill icons: %v", err)
+		}
+	}()
+
 	folderService := service.NewFolderService(folderRepo, feedRepo)
-	feedService := service.NewFeedService(feedRepo, folderRepo, entryRepo, iconService, settingsService, nil)
+	feedService := service.NewFeedService(feedRepo, folderRepo, entryRepo, iconService, settingsService, nil, anubisSolver)
 	entryService := service.NewEntryService(entryRepo, feedRepo, folderRepo)
 	readabilityService := service.NewReadabilityService(entryRepo)
 	opmlService := service.NewOPMLService(folderService, feedService, folderRepo, feedRepo)
-	refreshService := service.NewRefreshService(feedRepo, entryRepo, settingsService, nil)
+	refreshService := service.NewRefreshService(feedRepo, entryRepo, settingsService, nil, anubisSolver)
 
-	proxyService := service.NewProxyService()
+	proxyService := service.NewProxyService(anubisSolver)
 	aiService := service.NewAIService(aiSummaryRepo, aiTranslationRepo, aiListTranslationRepo, settingsRepo, rateLimiter)
 
 	folderHandler := handler.NewFolderHandler(folderService)
