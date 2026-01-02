@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
-import { startImportOPML, watchImportStatus, cancelImportOPML, exportOPML } from '@/api'
+import { startImportOPML, watchImportStatus, cancelImportOPML, exportOPML, clearAICache } from '@/api'
+import type { ClearAICacheResponse } from '@/api'
 import { cn } from '@/lib/utils'
 import type { ImportResult, ImportTask } from '@/types/api'
 
@@ -13,6 +14,10 @@ export function DataControl() {
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
   const [importError, setImportError] = useState<string | null>(null)
   const [task, setTask] = useState<ImportTask | null>(null)
+
+  const [isClearing, setIsClearing] = useState(false)
+  const [clearResult, setClearResult] = useState<ClearAICacheResponse | null>(null)
+  const [clearError, setClearError] = useState<string | null>(null)
 
   const isImporting = task?.status === 'running'
 
@@ -68,6 +73,22 @@ export function DataControl() {
 
   const handleExport = () => {
     exportOPML()
+  }
+
+  const handleClearAICache = async () => {
+    setIsClearing(true)
+    setClearResult(null)
+    setClearError(null)
+
+    try {
+      const result = await clearAICache()
+      setClearResult(result)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Clear failed'
+      setClearError(message)
+    } finally {
+      setIsClearing(false)
+    }
   }
 
   return (
@@ -227,6 +248,84 @@ export function DataControl() {
               <span>{t('data_control.export')}</span>
             </button>
           </div>
+        </div>
+      </section>
+
+      {/* Clear Cache Section */}
+      <section>
+        <h3 className="mb-4 text-sm font-semibold text-muted-foreground">{t('data_control.clear_cache')}</h3>
+
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm font-medium">{t('data_control.clear_ai_cache')}</div>
+              <div className="text-xs text-muted-foreground">{t('data_control.clear_ai_cache_description')}</div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleClearAICache}
+              disabled={isClearing}
+              className={cn(
+                'inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium',
+                'transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50'
+              )}
+            >
+              {isClearing ? (
+                <>
+                  <svg className="size-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
+                  </svg>
+                  <span>{t('data_control.clearing')}</span>
+                </>
+              ) : (
+                <>
+                  <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
+                  </svg>
+                  <span>{t('data_control.clear')}</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Clear Result */}
+          {clearResult && (
+            <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm dark:border-green-900 dark:bg-green-950">
+              <div className="font-medium text-green-800 dark:text-green-200">{t('data_control.clear_success')}</div>
+              <div className="mt-1 text-green-700 dark:text-green-300">
+                {t('data_control.cleared_items', {
+                  summaries: clearResult.summaries,
+                  translations: clearResult.translations + clearResult.listTranslations,
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Clear Error */}
+          {clearError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950">
+              <div className="font-medium text-red-800 dark:text-red-200">{t('data_control.clear_failed')}</div>
+              <div className="mt-1 text-red-700 dark:text-red-300">{clearError}</div>
+            </div>
+          )}
         </div>
       </section>
     </div>

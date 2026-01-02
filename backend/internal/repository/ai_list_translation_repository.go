@@ -14,6 +14,7 @@ type AIListTranslationRepository interface {
 	GetBatch(ctx context.Context, entryIDs []int64, language string) (map[int64]*model.AIListTranslation, error)
 	Save(ctx context.Context, entryID int64, language, title, summary string) error
 	DeleteByEntryID(ctx context.Context, entryID int64) error
+	DeleteAll(ctx context.Context) (int64, error)
 }
 
 type aiListTranslationRepository struct {
@@ -110,4 +111,12 @@ func (r *aiListTranslationRepository) Save(ctx context.Context, entryID int64, l
 func (r *aiListTranslationRepository) DeleteByEntryID(ctx context.Context, entryID int64) error {
 	_, err := r.db.ExecContext(ctx, `DELETE FROM ai_list_translations WHERE entry_id = ?`, entryID)
 	return err
+}
+
+func (r *aiListTranslationRepository) DeleteAll(ctx context.Context) (int64, error) {
+	result, err := r.db.ExecContext(ctx, `DELETE FROM ai_list_translations`)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

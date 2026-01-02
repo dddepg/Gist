@@ -214,10 +214,17 @@
     "export_data": "导出数据",
     "export_feeds": "导出订阅源",
     "export_description": "将所有订阅源和文件夹导出为 OPML 文件",
-    "export": "导出"
+    "export": "导出",
+    "clear_cache": "清理缓存",
+    "clear_ai_cache": "清理 AI 缓存",
+    "clear_ai_cache_description": "删除所有 AI 生成的摘要和翻译缓存",
+    "clearing": "清理中...",
+    "clear": "清理",
+    "clear_success": "清理完成",
+    "cleared_items": "已删除 {{summaries}} 条摘要、{{translations}} 条翻译",
+    "clear_failed": "清理失败"
   },
   "user": {
-    "free_plan": "免费计划",
     "profile": "个人资料",
     "logout": "退出登录"
   },

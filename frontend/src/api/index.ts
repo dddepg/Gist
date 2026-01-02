@@ -640,3 +640,15 @@ export async function* streamBatchTranslate(
     reader.releaseLock()
   }
 }
+
+export interface ClearAICacheResponse {
+  summaries: number
+  translations: number
+  listTranslations: number
+}
+
+export async function clearAICache(): Promise<ClearAICacheResponse> {
+  return request<ClearAICacheResponse>('/api/ai/cache', {
+    method: 'DELETE',
+  })
+}

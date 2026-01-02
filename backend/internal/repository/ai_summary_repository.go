@@ -13,6 +13,7 @@ type AISummaryRepository interface {
 	Get(ctx context.Context, entryID int64, isReadability bool, language string) (*model.AISummary, error)
 	Save(ctx context.Context, entryID int64, isReadability bool, language, summary string) error
 	DeleteByEntryID(ctx context.Context, entryID int64) error
+	DeleteAll(ctx context.Context) (int64, error)
 }
 
 type aiSummaryRepository struct {
@@ -78,4 +79,12 @@ func (r *aiSummaryRepository) Save(ctx context.Context, entryID int64, isReadabi
 func (r *aiSummaryRepository) DeleteByEntryID(ctx context.Context, entryID int64) error {
 	_, err := r.db.ExecContext(ctx, `DELETE FROM ai_summaries WHERE entry_id = ?`, entryID)
 	return err
+}
+
+func (r *aiSummaryRepository) DeleteAll(ctx context.Context) (int64, error) {
+	result, err := r.db.ExecContext(ctx, `DELETE FROM ai_summaries`)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

@@ -215,10 +215,17 @@
     "export_data": "Export Data",
     "export_feeds": "Export Feeds",
     "export_description": "Export all feeds and folders as OPML file",
-    "export": "Export"
+    "export": "Export",
+    "clear_cache": "Clear Cache",
+    "clear_ai_cache": "Clear AI Cache",
+    "clear_ai_cache_description": "Delete all AI-generated summaries and translations cache",
+    "clearing": "Clearing...",
+    "clear": "Clear",
+    "clear_success": "Cache Cleared",
+    "cleared_items": "Deleted {{summaries}} summaries and {{translations}} translations",
+    "clear_failed": "Clear Failed"
   },
   "user": {
-    "free_plan": "Free Plan",
     "profile": "Profile",
     "logout": "Logout"
   },

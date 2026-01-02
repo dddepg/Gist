@@ -50,6 +50,7 @@ func (h *AIHandler) RegisterRoutes(g *echo.Group) {
 	g.POST("/ai/summarize", h.Summarize)
 	g.POST("/ai/translate", h.Translate)
 	g.POST("/ai/translate/batch", h.TranslateBatch)
+	g.DELETE("/ai/cache", h.ClearCache)
 }
 
 // Summarize generates an AI summary of the content.
@@ -364,4 +365,33 @@ func (h *AIHandler) TranslateBatch(c echo.Context) error {
 			return nil
 		}
 	}
+}
+
+type clearCacheResponse struct {
+	Summaries        int64 `json:"summaries"`
+	Translations     int64 `json:"translations"`
+	ListTranslations int64 `json:"listTranslations"`
+}
+
+// ClearCache deletes all AI cache data.
+// @Summary Clear AI cache
+// @Description Delete all AI-generated summaries and translations cache.
+// @Tags ai
+// @Produce json
+// @Success 200 {object} clearCacheResponse
+// @Failure 500 {object} errorResponse
+// @Router /ai/cache [delete]
+func (h *AIHandler) ClearCache(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	summaries, translations, listTranslations, err := h.service.ClearAllCache(ctx)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, errorResponse{Error: err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, clearCacheResponse{
+		Summaries:        summaries,
+		Translations:     translations,
+		ListTranslations: listTranslations,
+	})
 }

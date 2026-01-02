@@ -132,6 +132,15 @@ definitions:
           type: object
         type: array
     type: object
+  internal_handler.clearCacheResponse:
+    properties:
+      listTranslations:
+        type: integer
+      summaries:
+        type: integer
+      translations:
+        type: integer
+    type: object
   internal_handler.createFeedRequest:
     properties:
       folderId:
@@ -393,6 +402,23 @@ info:
   title: Gist API
   version: "1.0"
 paths:
+  /ai/cache:
+    delete:
+      description: Delete all AI-generated summaries and translations cache.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.clearCacheResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+      summary: Clear AI cache
+      tags:
+      - ai
   /ai/summarize:
     post:
       consumes:

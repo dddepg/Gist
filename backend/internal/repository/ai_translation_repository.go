@@ -13,6 +13,7 @@ type AITranslationRepository interface {
 	Get(ctx context.Context, entryID int64, isReadability bool, language string) (*model.AITranslation, error)
 	Save(ctx context.Context, entryID int64, isReadability bool, language, content string) error
 	DeleteByEntryID(ctx context.Context, entryID int64) error
+	DeleteAll(ctx context.Context) (int64, error)
 }
 
 type aiTranslationRepository struct {
@@ -78,4 +79,12 @@ func (r *aiTranslationRepository) Save(ctx context.Context, entryID int64, isRea
 func (r *aiTranslationRepository) DeleteByEntryID(ctx context.Context, entryID int64) error {
 	_, err := r.db.ExecContext(ctx, `DELETE FROM ai_translations WHERE entry_id = ?`, entryID)
 	return err
+}
+
+func (r *aiTranslationRepository) DeleteAll(ctx context.Context) (int64, error) {
+	result, err := r.db.ExecContext(ctx, `DELETE FROM ai_translations`)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
