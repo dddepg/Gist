@@ -63,6 +63,9 @@ type AIService interface {
 	// TranslateBatch translates multiple articles' titles and summaries.
 	// Returns a channel of results and an error channel.
 	TranslateBatch(ctx context.Context, articles []BatchArticleInput) (<-chan BatchTranslateResult, <-chan error, error)
+	// ClearAllCache deletes all AI cache data (summaries, translations, list translations).
+	// Returns the number of deleted records for each type.
+	ClearAllCache(ctx context.Context) (summaries, translations, listTranslations int64, err error)
 }
 
 type aiService struct {
@@ -537,4 +540,23 @@ func parseEntryID(id string) (int64, error) {
 	var entryID int64
 	_, err := fmt.Sscanf(id, "%d", &entryID)
 	return entryID, err
+}
+
+func (s *aiService) ClearAllCache(ctx context.Context) (summaries, translations, listTranslations int64, err error) {
+	summaries, err = s.summaryRepo.DeleteAll(ctx)
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("clear summaries: %w", err)
+	}
+
+	translations, err = s.translationRepo.DeleteAll(ctx)
+	if err != nil {
+		return summaries, 0, 0, fmt.Errorf("clear translations: %w", err)
+	}
+
+	listTranslations, err = s.listTranslationRepo.DeleteAll(ctx)
+	if err != nil {
+		return summaries, translations, 0, fmt.Errorf("clear list translations: %w", err)
+	}
+
+	return summaries, translations, listTranslations, nil
 }

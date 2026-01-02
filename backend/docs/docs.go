@@ -15,6 +15,32 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/ai/cache": {
+            "delete": {
+                "description": "Delete all AI-generated summaries and translations cache.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ai"
+                ],
+                "summary": "Clear AI cache",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.clearCacheResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.errorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/ai/summarize": {
             "post": {
                 "description": "Generate an AI summary of the article content. Returns cached result if available, otherwise streams the response.",
@@ -1535,6 +1561,20 @@ const docTemplate = `{
                             }
                         }
                     }
+                }
+            }
+        },
+        "internal_handler.clearCacheResponse": {
+            "type": "object",
+            "properties": {
+                "listTranslations": {
+                    "type": "integer"
+                },
+                "summaries": {
+                    "type": "integer"
+                },
+                "translations": {
+                    "type": "integer"
                 }
             }
         },
