@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,6 +15,7 @@ import (
 
 	"gist/backend/internal/config"
 	"gist/backend/internal/repository"
+	"gist/backend/internal/service/anubis"
 )
 
 type IconService interface {
@@ -33,39 +36,51 @@ type iconService struct {
 	dataDir    string
 	feeds      repository.FeedRepository
 	httpClient *http.Client
+	anubis     *anubis.Solver
 }
 
-func NewIconService(dataDir string, feeds repository.FeedRepository) IconService {
+func NewIconService(dataDir string, feeds repository.FeedRepository, anubisSolver *anubis.Solver) IconService {
 	return &iconService{
 		dataDir: dataDir,
 		feeds:   feeds,
 		httpClient: &http.Client{
 			Timeout: 15 * time.Second,
 		},
+		anubis: anubisSolver,
 	}
 }
 
 func (s *iconService) FetchAndSaveIcon(ctx context.Context, feedImageURL, siteURL string) (string, error) {
-	// Generate icon filename from siteURL domain
-	iconPath := iconFilename(siteURL)
-	if iconPath == "" {
-		return "", nil
+	feedImageURL = strings.TrimSpace(feedImageURL)
+
+	// Determine icon filename:
+	// - If feed has its own image (e.g., user avatar), use URL hash for unique filename
+	// - Otherwise, use domain-based filename (shared favicon)
+	var iconPath string
+	var iconURL string
+
+	if feedImageURL != "" {
+		// Feed has its own image, use hash-based filename
+		hash := sha256.Sum256([]byte(feedImageURL))
+		iconPath = hex.EncodeToString(hash[:8]) + ".png" // Use first 8 bytes (16 chars)
+		iconURL = feedImageURL
+	} else {
+		// Use domain-based filename for shared favicon
+		iconPath = iconFilename(siteURL)
+		if iconPath == "" {
+			return "", nil
+		}
+		iconURL = s.buildFaviconURL(siteURL)
+		if iconURL == "" {
+			return "", nil
+		}
 	}
 
 	fullPath := filepath.Join(s.dataDir, "icons", iconPath)
 
-	// Check if icon already exists (shared by multiple feeds)
+	// Check if icon already exists
 	if _, err := os.Stat(fullPath); err == nil {
 		return iconPath, nil
-	}
-
-	// Determine icon URL: prefer feed image, fallback to Google Favicon API
-	iconURL := strings.TrimSpace(feedImageURL)
-	if iconURL == "" {
-		iconURL = s.buildFaviconURL(siteURL)
-	}
-	if iconURL == "" {
-		return "", nil
 	}
 
 	// Download icon
@@ -73,9 +88,17 @@ func (s *iconService) FetchAndSaveIcon(ctx context.Context, feedImageURL, siteUR
 	if err != nil {
 		// Try Google Favicon API as fallback if feed image failed
 		if feedImageURL != "" {
-			iconURL = s.buildFaviconURL(siteURL)
-			if iconURL != "" {
-				iconData, err = s.downloadIcon(ctx, iconURL)
+			fallbackURL := s.buildFaviconURL(siteURL)
+			if fallbackURL != "" {
+				iconData, err = s.downloadIcon(ctx, fallbackURL)
+				if err == nil {
+					// Switch to domain-based filename since we're using favicon
+					iconPath = iconFilename(siteURL)
+					if iconPath == "" {
+						return "", nil
+					}
+					fullPath = filepath.Join(s.dataDir, "icons", iconPath)
+				}
 			}
 		}
 		if err != nil {
@@ -107,7 +130,13 @@ func (s *iconService) EnsureIcon(ctx context.Context, iconPath, siteURL string) 
 		return nil // File exists
 	}
 
-	// File missing, re-download
+	// Check if this is a hash-based filename (16 hex chars + .png)
+	// Hash-based icons (e.g., user avatars) cannot be recovered without the original URL
+	if isHashFilename(iconPath) {
+		return nil // Cannot recover, skip
+	}
+
+	// File missing, re-download using Google Favicon API
 	iconURL := s.buildFaviconURL(siteURL)
 	if iconURL == "" {
 		return nil
@@ -127,6 +156,23 @@ func (s *iconService) EnsureIcon(ctx context.Context, iconPath, siteURL string) 
 	}
 
 	return nil
+}
+
+// isHashFilename checks if the filename is a hash-based name (16 hex chars + .png)
+func isHashFilename(filename string) bool {
+	if !strings.HasSuffix(filename, ".png") {
+		return false
+	}
+	name := strings.TrimSuffix(filename, ".png")
+	if len(name) != 16 {
+		return false
+	}
+	for _, c := range name {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *iconService) EnsureIconByFeedID(ctx context.Context, feedID int64, iconPath string) error {
@@ -256,11 +302,26 @@ func iconFilename(siteURL string) string {
 }
 
 func (s *iconService) downloadIcon(ctx context.Context, iconURL string) ([]byte, error) {
+	return s.downloadIconWithCookie(ctx, iconURL, "")
+}
+
+func (s *iconService) downloadIconWithCookie(ctx context.Context, iconURL string, cookie string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, iconURL, nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("User-Agent", config.DefaultUserAgent)
+
+	// Add cookie (either provided or from cache)
+	if cookie != "" {
+		req.Header.Set("Cookie", cookie)
+	} else if s.anubis != nil {
+		if parsed, err := url.Parse(iconURL); err == nil {
+			if cachedCookie := s.anubis.GetCachedCookie(ctx, parsed.Host); cachedCookie != "" {
+				req.Header.Set("Cookie", cachedCookie)
+			}
+		}
+	}
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
@@ -275,6 +336,16 @@ func (s *iconService) downloadIcon(ctx context.Context, iconURL string) ([]byte,
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
+	}
+
+	// Check if response is Anubis challenge (HTML instead of image)
+	if s.anubis != nil && cookie == "" && anubis.IsAnubisChallenge(data) {
+		newCookie, solveErr := s.anubis.SolveFromBody(ctx, data, iconURL, resp.Cookies())
+		if solveErr != nil {
+			return nil, solveErr
+		}
+		// Retry with the new cookie
+		return s.downloadIconWithCookie(ctx, iconURL, newCookie)
 	}
 
 	// Check minimum size (avoid empty/broken images)

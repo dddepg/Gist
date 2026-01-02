@@ -1,10 +1,12 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -16,6 +18,7 @@ import (
 	"gist/backend/internal/config"
 	"gist/backend/internal/model"
 	"gist/backend/internal/repository"
+	"gist/backend/internal/service/anubis"
 )
 
 type FeedService interface {
@@ -45,14 +48,15 @@ type feedService struct {
 	icons      IconService
 	settings   SettingsService
 	httpClient *http.Client
+	anubis     *anubis.Solver
 }
 
-func NewFeedService(feeds repository.FeedRepository, folders repository.FolderRepository, entries repository.EntryRepository, icons IconService, settings SettingsService, httpClient *http.Client) FeedService {
+func NewFeedService(feeds repository.FeedRepository, folders repository.FolderRepository, entries repository.EntryRepository, icons IconService, settings SettingsService, httpClient *http.Client, anubisSolver *anubis.Solver) FeedService {
 	client := httpClient
 	if client == nil {
 		client = &http.Client{Timeout: 20 * time.Second}
 	}
-	return &feedService{feeds: feeds, folders: folders, entries: entries, icons: icons, settings: settings, httpClient: client}
+	return &feedService{feeds: feeds, folders: folders, entries: entries, icons: icons, settings: settings, httpClient: client, anubis: anubisSolver}
 }
 
 func (s *feedService) Add(ctx context.Context, feedURL string, folderID *int64, titleOverride string, feedType string) (model.Feed, error) {
@@ -252,11 +256,26 @@ func (s *feedService) fetchFeed(ctx context.Context, feedURL string) (feedFetch,
 }
 
 func (s *feedService) fetchFeedWithUA(ctx context.Context, feedURL string, userAgent string, allowFallback bool) (feedFetch, error) {
+	return s.fetchFeedWithCookie(ctx, feedURL, userAgent, "", allowFallback)
+}
+
+func (s *feedService) fetchFeedWithCookie(ctx context.Context, feedURL string, userAgent string, cookie string, allowFallback bool) (feedFetch, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, feedURL, nil)
 	if err != nil {
 		return feedFetch{}, ErrFeedFetch
 	}
 	req.Header.Set("User-Agent", userAgent)
+
+	// Add cached Anubis cookie if available
+	if cookie == "" && s.anubis != nil {
+		host := extractFeedHost(feedURL)
+		if cachedCookie := s.anubis.GetCachedCookie(ctx, host); cachedCookie != "" {
+			cookie = cachedCookie
+		}
+	}
+	if cookie != "" {
+		req.Header.Set("Cookie", cookie)
+	}
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
@@ -268,7 +287,7 @@ func (s *feedService) fetchFeedWithUA(ctx context.Context, feedURL string, userA
 	if resp.StatusCode >= http.StatusBadRequest && allowFallback && s.settings != nil {
 		fallbackUA := s.settings.GetFallbackUserAgent(ctx)
 		if fallbackUA != "" {
-			return s.fetchFeedWithUA(ctx, feedURL, fallbackUA, false)
+			return s.fetchFeedWithCookie(ctx, feedURL, fallbackUA, cookie, false)
 		}
 	}
 
@@ -276,9 +295,25 @@ func (s *feedService) fetchFeedWithUA(ctx context.Context, feedURL string, userA
 		return feedFetch{}, ErrFeedFetch
 	}
 
-	parser := gofeed.NewParser()
-	parsed, err := parser.Parse(resp.Body)
+	// Read body into memory for Anubis detection and RSS parsing
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
+		return feedFetch{}, ErrFeedFetch
+	}
+
+	// Try to parse as RSS/Atom
+	parser := gofeed.NewParser()
+	parsed, parseErr := parser.Parse(bytes.NewReader(body))
+	if parseErr != nil {
+		// Parse failed, check if it's an Anubis challenge
+		if s.anubis != nil && anubis.IsAnubisChallenge(body) {
+			newCookie, solveErr := s.anubis.SolveFromBody(ctx, body, feedURL, resp.Cookies())
+			if solveErr != nil {
+				return feedFetch{}, ErrFeedFetch
+			}
+			// Retry with the new cookie
+			return s.fetchFeedWithCookie(ctx, feedURL, userAgent, newCookie, false)
+		}
 		return feedFetch{}, ErrFeedFetch
 	}
 
@@ -315,6 +350,15 @@ func (s *feedService) fetchFeedWithUA(ctx context.Context, feedURL string, userA
 		lastModified: lastModified,
 		items:        parsed.Items,
 	}, nil
+}
+
+// extractFeedHost returns the host from a URL string
+func extractFeedHost(rawURL string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return ""
+	}
+	return u.Host
 }
 
 // hasDynamicTime checks if all items have the same updated time (dynamic generation)

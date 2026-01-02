@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { isSafeUrl, getSafeHostname } from '@/lib/url'
+import { getProxiedImageUrl } from '@/lib/image-proxy'
 import type { FeedPreview, Folder } from '@/types/api'
 
 interface FeedPreviewCardProps {
@@ -74,7 +75,7 @@ export function FeedPreviewCard({ feed, folders, onSubscribe, isLoading = false 
         <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-accent">
           {feed.imageUrl && isSafeUrl(feed.imageUrl) ? (
             <img
-              src={feed.imageUrl}
+              src={getProxiedImageUrl(feed.imageUrl, feed.siteUrl)}
               alt=""
               className="size-12 rounded-lg object-cover"
             />

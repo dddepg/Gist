@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"gist/backend/internal/config"
+	"gist/backend/internal/service/anubis"
 )
 
 const proxyTimeout = 15 * time.Second
@@ -31,17 +32,23 @@ type ProxyService interface {
 
 type proxyService struct {
 	httpClient *http.Client
+	anubis     *anubis.Solver
 }
 
-func NewProxyService() ProxyService {
+func NewProxyService(anubisSolver *anubis.Solver) ProxyService {
 	return &proxyService{
 		httpClient: &http.Client{
 			Timeout: proxyTimeout,
 		},
+		anubis: anubisSolver,
 	}
 }
 
 func (s *proxyService) FetchImage(ctx context.Context, imageURL string) (*ProxyResult, error) {
+	return s.fetchImageWithCookie(ctx, imageURL, "")
+}
+
+func (s *proxyService) fetchImageWithCookie(ctx context.Context, imageURL string, cookie string) (*ProxyResult, error) {
 	// Validate URL
 	parsedURL, err := url.Parse(imageURL)
 	if err != nil {
@@ -67,6 +74,15 @@ func (s *proxyService) FetchImage(ctx context.Context, imageURL string) (*ProxyR
 	req.Header.Set("Accept", "image/*,*/*;q=0.8")
 	req.Header.Set("Referer", parsedURL.Scheme+"://"+parsedURL.Host+"/")
 
+	// Add cookie (either provided or from cache)
+	if cookie != "" {
+		req.Header.Set("Cookie", cookie)
+	} else if s.anubis != nil {
+		if cachedCookie := s.anubis.GetCachedCookie(ctx, parsedURL.Host); cachedCookie != "" {
+			req.Header.Set("Cookie", cachedCookie)
+		}
+	}
+
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
@@ -83,6 +99,16 @@ func (s *proxyService) FetchImage(ctx context.Context, imageURL string) (*ProxyR
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, ErrFetchFailed
+	}
+
+	// Check if response is Anubis challenge (HTML instead of image)
+	if s.anubis != nil && cookie == "" && anubis.IsAnubisChallenge(data) {
+		newCookie, solveErr := s.anubis.SolveFromBody(ctx, data, imageURL, resp.Cookies())
+		if solveErr != nil {
+			return nil, ErrFetchFailed
+		}
+		// Retry with the new cookie
+		return s.fetchImageWithCookie(ctx, imageURL, newCookie)
 	}
 
 	contentType := resp.Header.Get("Content-Type")

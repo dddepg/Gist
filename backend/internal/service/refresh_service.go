@@ -1,9 +1,11 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -18,6 +20,7 @@ import (
 	"gist/backend/internal/config"
 	"gist/backend/internal/model"
 	"gist/backend/internal/repository"
+	"gist/backend/internal/service/anubis"
 )
 
 const (
@@ -72,11 +75,12 @@ type refreshService struct {
 	entries      repository.EntryRepository
 	settings     SettingsService
 	httpClient   *http.Client
+	anubis       *anubis.Solver
 	mu           sync.Mutex
 	isRefreshing bool
 }
 
-func NewRefreshService(feeds repository.FeedRepository, entries repository.EntryRepository, settings SettingsService, httpClient *http.Client) RefreshService {
+func NewRefreshService(feeds repository.FeedRepository, entries repository.EntryRepository, settings SettingsService, httpClient *http.Client, anubisSolver *anubis.Solver) RefreshService {
 	client := httpClient
 	if client == nil {
 		client = &http.Client{Timeout: 30 * time.Second}
@@ -86,6 +90,7 @@ func NewRefreshService(feeds repository.FeedRepository, entries repository.Entry
 		entries:    entries,
 		settings:   settings,
 		httpClient: client,
+		anubis:     anubisSolver,
 	}
 }
 
@@ -168,6 +173,10 @@ func (s *refreshService) refreshFeedInternal(ctx context.Context, feed model.Fee
 }
 
 func (s *refreshService) refreshFeedWithUA(ctx context.Context, feed model.Feed, userAgent string, allowFallback bool) error {
+	return s.refreshFeedWithCookie(ctx, feed, userAgent, "", allowFallback)
+}
+
+func (s *refreshService) refreshFeedWithCookie(ctx context.Context, feed model.Feed, userAgent string, cookie string, allowFallback bool) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, feed.URL, nil)
 	if err != nil {
 		errMsg := err.Error()
@@ -175,6 +184,17 @@ func (s *refreshService) refreshFeedWithUA(ctx context.Context, feed model.Feed,
 		return err
 	}
 	req.Header.Set("User-Agent", userAgent)
+
+	// Add cached Anubis cookie if available
+	if cookie == "" && s.anubis != nil {
+		host := extractHost(feed.URL)
+		if cachedCookie := s.anubis.GetCachedCookie(ctx, host); cachedCookie != "" {
+			cookie = cachedCookie
+		}
+	}
+	if cookie != "" {
+		req.Header.Set("Cookie", cookie)
+	}
 
 	// Conditional GET
 	if feed.ETag != nil && *feed.ETag != "" {
@@ -206,7 +226,7 @@ func (s *refreshService) refreshFeedWithUA(ctx context.Context, feed model.Feed,
 		fallbackUA := s.settings.GetFallbackUserAgent(ctx)
 		if fallbackUA != "" {
 			log.Printf("feed %d (%s): HTTP %d, retrying with fallback UA", feed.ID, feed.Title, resp.StatusCode)
-			return s.refreshFeedWithUA(ctx, feed, fallbackUA, false)
+			return s.refreshFeedWithCookie(ctx, feed, fallbackUA, cookie, false)
 		}
 	}
 
@@ -217,12 +237,31 @@ func (s *refreshService) refreshFeedWithUA(ctx context.Context, feed model.Feed,
 		return nil
 	}
 
-	parser := gofeed.NewParser()
-	parsed, err := parser.Parse(resp.Body)
+	// Read body into memory for Anubis detection and RSS parsing
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		errMsg := err.Error()
 		_ = s.feeds.UpdateErrorMessage(ctx, feed.ID, &errMsg)
 		return err
+	}
+
+	parser := gofeed.NewParser()
+	parsed, parseErr := parser.Parse(bytes.NewReader(body))
+	if parseErr != nil {
+		// Parse failed, check if it's an Anubis challenge
+		if s.anubis != nil && anubis.IsAnubisChallenge(body) {
+			newCookie, solveErr := s.anubis.SolveFromBody(ctx, body, feed.URL, resp.Cookies())
+			if solveErr != nil {
+				errMsg := fmt.Sprintf("anubis solve failed: %v", solveErr)
+				_ = s.feeds.UpdateErrorMessage(ctx, feed.ID, &errMsg)
+				return solveErr
+			}
+			// Retry with the new cookie
+			return s.refreshFeedWithCookie(ctx, feed, userAgent, newCookie, false)
+		}
+		errMsg := parseErr.Error()
+		_ = s.feeds.UpdateErrorMessage(ctx, feed.ID, &errMsg)
+		return parseErr
 	}
 
 	// Clear error message on successful refresh
