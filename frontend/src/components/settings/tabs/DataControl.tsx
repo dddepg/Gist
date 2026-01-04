@@ -117,7 +117,7 @@ export function DataControl() {
               onClick={handleImportClick}
               disabled={isImporting}
               className={cn(
-                'inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium',
+                'inline-flex h-8 items-center gap-2 rounded-lg border border-border bg-background px-4 text-sm font-medium',
                 'transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50'
               )}
             >
@@ -233,7 +233,7 @@ export function DataControl() {
               type="button"
               onClick={handleExport}
               className={cn(
-                'inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium',
+                'inline-flex h-8 items-center gap-2 rounded-lg border border-border bg-background px-4 text-sm font-medium',
                 'transition-colors hover:bg-accent'
               )}
             >
@@ -267,7 +267,7 @@ export function DataControl() {
               onClick={handleClearAICache}
               disabled={isClearing}
               className={cn(
-                'inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium',
+                'inline-flex h-8 items-center gap-2 rounded-lg border border-border bg-background px-4 text-sm font-medium',
                 'transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50'
               )}
             >
