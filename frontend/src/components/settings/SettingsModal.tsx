@@ -7,13 +7,14 @@ import {
 } from '@/components/ui/dialog'
 import { SettingsSidebar } from './SettingsSidebar'
 import { GeneralSettings } from './tabs/GeneralSettings'
+import { AppearanceSettings } from './tabs/AppearanceSettings'
 import { DataControl } from './tabs/DataControl'
 import { FeedsSettings } from './tabs/FeedsSettings'
 import { FoldersSettings } from './tabs/FoldersSettings'
 import { AISettings } from './tabs/AISettings'
 import { cn } from '@/lib/utils'
 
-export type SettingsTab = 'general' | 'feeds' | 'folders' | 'data' | 'ai'
+export type SettingsTab = 'general' | 'appearance' | 'ai' | 'data' | 'feeds' | 'folders'
 
 interface SettingsModalProps {
   open: boolean
@@ -45,14 +46,16 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     switch (activeTab) {
       case 'general':
         return <GeneralSettings />
+      case 'appearance':
+        return <AppearanceSettings />
+      case 'ai':
+        return <AISettings />
+      case 'data':
+        return <DataControl />
       case 'feeds':
         return <FeedsSettings />
       case 'folders':
         return <FoldersSettings />
-      case 'data':
-        return <DataControl />
-      case 'ai':
-        return <AISettings />
       default:
         return null
     }
@@ -62,14 +65,16 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     switch (activeTab) {
       case 'general':
         return t('settings.general')
+      case 'appearance':
+        return t('settings.appearance')
+      case 'ai':
+        return t('settings.ai')
+      case 'data':
+        return t('settings.data')
       case 'feeds':
         return t('settings.subscriptions')
       case 'folders':
         return t('settings.folders')
-      case 'data':
-        return t('settings.data')
-      case 'ai':
-        return t('settings.ai')
       default:
         return t('settings.title')
     }
@@ -77,10 +82,11 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
   const tabs: { id: SettingsTab; label: string }[] = [
     { id: 'general', label: t('settings.general') },
+    { id: 'appearance', label: t('settings.appearance') },
+    { id: 'ai', label: t('settings.ai') },
+    { id: 'data', label: t('settings.data') },
     { id: 'feeds', label: t('settings.subscriptions') },
     { id: 'folders', label: t('settings.folders') },
-    { id: 'data', label: t('settings.data') },
-    { id: 'ai', label: t('settings.ai') },
   ]
 
   // Mobile layout

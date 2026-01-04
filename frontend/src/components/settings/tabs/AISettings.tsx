@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getAISettings, updateAISettings, testAIConnection, ApiError } from '@/api'
 import { cn } from '@/lib/utils'
+import { Switch } from '@/components/ui/switch'
 import type { AIProvider, AISettings as AISettingsType, ReasoningEffort } from '@/types/settings'
 
 export function AISettings() {
@@ -16,7 +17,6 @@ export function AISettings() {
     [t]
   )
 
-  // OpenAI reasoning effort options (full range)
   const OPENAI_EFFORT_OPTIONS: { value: ReasoningEffort; label: string }[] = useMemo(
     () => [
       { value: 'xhigh', label: t('ai_settings.effort_xhigh') },
@@ -29,7 +29,6 @@ export function AISettings() {
     [t]
   )
 
-  // Compatible (OpenRouter) effort options (full range)
   const COMPATIBLE_EFFORT_OPTIONS: { value: ReasoningEffort; label: string }[] = useMemo(
     () => [
       { value: 'xhigh', label: t('ai_settings.effort_xhigh_percent') },
@@ -42,7 +41,6 @@ export function AISettings() {
     [t]
   )
 
-  // Summary language options
   const SUMMARY_LANGUAGE_OPTIONS: { value: string; label: string }[] = useMemo(
     () => [
       { value: 'zh-CN', label: t('ai_settings.lang_zh_cn') },
@@ -56,6 +54,7 @@ export function AISettings() {
     ],
     [t]
   )
+
   const [settings, setSettings] = useState<AISettingsType | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -101,10 +100,8 @@ export function AISettings() {
 
   const handleTest = async () => {
     if (!settings) return
-
     setIsTesting(true)
     setTestResult(null)
-
     try {
       const result = await testAIConnection({
         provider: settings.provider,
@@ -128,11 +125,9 @@ export function AISettings() {
 
   const handleSave = async () => {
     if (!settings) return
-
     setIsSaving(true)
     setError(null)
     setSuccessMessage(null)
-
     try {
       await updateAISettings(settings)
       setSuccessMessage(t('ai_settings.settings_saved'))
@@ -163,282 +158,268 @@ export function AISettings() {
     )
   }
 
+  const selectClass = 'h-8 w-48 rounded-md border border-border bg-background px-2 text-sm focus:border-primary focus:outline-none'
+  const inputClass = 'h-8 w-48 rounded-md border border-border bg-background px-2 text-sm focus:border-primary focus:outline-none'
+
   return (
-    <div className="space-y-6 max-w-xl">
+    <div className="space-y-1">
       {/* Provider */}
-      <div>
-        <label className="block text-sm font-medium mb-2">{t('ai_settings.provider')}</label>
+      <div className="flex items-center justify-between py-2">
+        <span className="text-sm font-medium">{t('ai_settings.provider')}</span>
         <select
           value={settings.provider}
           onChange={(e) => handleChange('provider', e.target.value)}
-          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
+          className={selectClass}
         >
           {PROVIDERS.map((p) => (
-            <option key={p.value} value={p.value}>
-              {p.label}
-            </option>
+            <option key={p.value} value={p.value}>{p.label}</option>
           ))}
         </select>
       </div>
 
       {/* API Key */}
-      <div>
-        <label className="block text-sm font-medium mb-2">{t('ai_settings.api_key')}</label>
+      <div className="flex items-center justify-between py-2">
+        <span className="text-sm font-medium">{t('ai_settings.api_key')}</span>
         <input
           type="password"
           value={settings.apiKey}
           onChange={(e) => handleChange('apiKey', e.target.value)}
           placeholder={
-            settings.provider === 'openai'
-              ? 'sk-...'
-              : settings.provider === 'anthropic'
-                ? 'sk-ant-...'
-                : t('ai_settings.enter_api_key')
+            settings.provider === 'openai' ? 'sk-...' :
+            settings.provider === 'anthropic' ? 'sk-ant-...' :
+            t('ai_settings.enter_api_key')
           }
-          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
+          className={inputClass}
         />
       </div>
 
       {/* Base URL */}
-      <div>
-        <label className="block text-sm font-medium mb-2">
-          {t('ai_settings.base_url')}
-          {settings.provider === 'compatible' && (
-            <span className="text-destructive ml-1">{t('ai_settings.required')}</span>
+      <div className="flex items-center justify-between py-2">
+        <div className="flex items-center gap-1">
+          <span className="text-sm font-medium">{t('ai_settings.base_url')}</span>
+          {settings.provider === 'compatible' ? (
+            <span className="text-xs text-destructive">{t('ai_settings.required')}</span>
+          ) : (
+            <span className="text-xs text-muted-foreground">{t('ai_settings.optional')}</span>
           )}
-          {settings.provider !== 'compatible' && (
-            <span className="text-muted-foreground font-normal ml-2">{t('ai_settings.optional')}</span>
-          )}
-        </label>
+        </div>
         <input
           type="text"
           value={settings.baseUrl}
           onChange={(e) => handleChange('baseUrl', e.target.value)}
           placeholder={
-            settings.provider === 'compatible'
-              ? 'https://openrouter.ai/api/v1'
-              : t('ai_settings.leave_empty_for_default')
+            settings.provider === 'compatible' ? 'https://openrouter.ai/api/v1' :
+            t('ai_settings.leave_empty_for_default')
           }
-          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
+          className={inputClass}
         />
       </div>
 
       {/* Model */}
-      <div>
-        <label className="block text-sm font-medium mb-2">{t('ai_settings.model')}</label>
+      <div className="flex items-center justify-between py-2">
+        <span className="text-sm font-medium">{t('ai_settings.model')}</span>
         <input
           type="text"
           value={settings.model}
           onChange={(e) => handleChange('model', e.target.value)}
           placeholder={
-            settings.provider === 'openai'
-              ? 'gpt-4o'
-              : settings.provider === 'anthropic'
-                ? 'claude-sonnet-4-20250514'
-                : t('ai_settings.model_example', { example: 'anthropic/claude-3.5-sonnet' })
+            settings.provider === 'openai' ? 'gpt-4o' :
+            settings.provider === 'anthropic' ? 'claude-sonnet-4-20250514' :
+            t('ai_settings.model_example', { example: 'anthropic/claude-3.5-sonnet' })
           }
-          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
+          className={inputClass}
         />
       </div>
 
-      {/* Reasoning/Thinking Settings - Provider Specific */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            id="thinking"
-            checked={settings.thinking}
-            onChange={(e) => handleChange('thinking', e.target.checked)}
-            className="size-4 rounded border-border"
-          />
-          <label htmlFor="thinking" className="text-sm font-medium">
+      {/* Reasoning Section */}
+      <div className="pb-1 pt-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        {t('ai_settings.extended_thinking')}
+      </div>
+
+      {/* Enable Reasoning */}
+      <div className="flex items-center justify-between py-2">
+        <div>
+          <span className="text-sm font-medium">
             {settings.provider === 'anthropic' ? t('ai_settings.extended_thinking') : t('ai_settings.enable_reasoning')}
-          </label>
+          </span>
           {settings.provider === 'openai' && (
-            <span className="text-xs text-muted-foreground">{t('ai_settings.o1_series')}</span>
+            <span className="ml-2 text-xs text-muted-foreground">{t('ai_settings.o1_series')}</span>
           )}
         </div>
+        <Switch
+          checked={settings.thinking}
+          onCheckedChange={(checked) => handleChange('thinking', checked)}
+        />
+      </div>
 
-        {/* OpenAI: Reasoning Effort dropdown */}
-        {settings.thinking && settings.provider === 'openai' && (
-          <div className="ml-6">
-            <label className="block text-sm font-medium mb-2">{t('ai_settings.reasoning_effort_label')}</label>
-            <select
-              value={settings.reasoningEffort}
-              onChange={(e) => handleChange('reasoningEffort', e.target.value)}
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
-            >
-              {OPENAI_EFFORT_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+      {/* OpenAI: Reasoning Effort */}
+      {settings.thinking && settings.provider === 'openai' && (
+        <div className="flex items-center justify-between py-2 pl-4">
+          <span className="text-sm">{t('ai_settings.reasoning_effort_label')}</span>
+          <select
+            value={settings.reasoningEffort}
+            onChange={(e) => handleChange('reasoningEffort', e.target.value)}
+            className={selectClass}
+          >
+            {OPENAI_EFFORT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* Anthropic: Thinking Budget */}
+      {settings.thinking && settings.provider === 'anthropic' && (
+        <div className="flex items-center justify-between py-2 pl-4">
+          <div>
+            <span className="text-sm">{t('ai_settings.thinking_budget_label')}</span>
+            <p className="text-xs text-muted-foreground">{t('ai_settings.thinking_budget_hint')}</p>
           </div>
-        )}
+          <input
+            type="number"
+            value={settings.thinkingBudget}
+            onChange={(e) => handleChange('thinkingBudget', parseInt(e.target.value) || 0)}
+            min={1024}
+            max={128000}
+            placeholder="10000"
+            className={cn(inputClass, 'w-24')}
+          />
+        </div>
+      )}
 
-        {/* Anthropic: Thinking Budget input */}
-        {settings.thinking && settings.provider === 'anthropic' && (
-          <div className="ml-6">
-            <label className="block text-sm font-medium mb-2">{t('ai_settings.thinking_budget_label')}</label>
-            <input
-              type="number"
-              value={settings.thinkingBudget}
-              onChange={(e) => handleChange('thinkingBudget', parseInt(e.target.value) || 0)}
-              min={1024}
-              max={128000}
-              placeholder="10000"
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
-            />
-            <p className="text-xs text-muted-foreground mt-1">{t('ai_settings.thinking_budget_hint')}</p>
-          </div>
-        )}
-
-        {/* Compatible: Both options (mutually exclusive) */}
-        {settings.thinking && settings.provider === 'compatible' && (
-          <div className="ml-6 space-y-4">
-            {/* Effort option */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  id="compatible-effort"
-                  name="compatible-mode"
-                  checked={settings.reasoningEffort !== ''}
-                  onChange={() => handleMultiChange({ reasoningEffort: 'medium', thinkingBudget: 0 })}
-                  className="size-4"
-                />
-                <label htmlFor="compatible-effort" className="text-sm font-medium">
-                  Reasoning Effort
-                </label>
-                <span className="text-xs text-muted-foreground">(o1/Grok models)</span>
-              </div>
-              {settings.reasoningEffort !== '' && (
-                <select
-                  value={settings.reasoningEffort}
-                  onChange={(e) => handleChange('reasoningEffort', e.target.value)}
-                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
-                >
-                  {COMPATIBLE_EFFORT_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              )}
+      {/* Compatible: Both options */}
+      {settings.thinking && settings.provider === 'compatible' && (
+        <div className="space-y-2 pl-4">
+          {/* Effort option */}
+          <div className="flex items-center justify-between py-1">
+            <div className="flex items-center gap-2">
+              <input
+                type="radio"
+                id="compatible-effort"
+                name="compatible-mode"
+                checked={settings.reasoningEffort !== ''}
+                onChange={() => handleMultiChange({ reasoningEffort: 'medium', thinkingBudget: 0 })}
+                className="size-4"
+              />
+              <label htmlFor="compatible-effort" className="text-sm">
+                {t('ai_settings.reasoning_effort_mode')}
+              </label>
+              <span className="text-xs text-muted-foreground">{t('ai_settings.o1_grok_models')}</span>
             </div>
-
-            {/* Budget option */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  id="compatible-budget"
-                  name="compatible-mode"
-                  checked={settings.reasoningEffort === '' && settings.thinkingBudget > 0}
-                  onChange={() => handleMultiChange({ reasoningEffort: '', thinkingBudget: 10000 })}
-                  className="size-4"
-                />
-                <label htmlFor="compatible-budget" className="text-sm font-medium">
-                  Thinking Budget
-                </label>
-                <span className="text-xs text-muted-foreground">(Anthropic/Gemini models)</span>
-              </div>
-              {settings.reasoningEffort === '' && settings.thinkingBudget > 0 && (
-                <input
-                  type="number"
-                  value={settings.thinkingBudget}
-                  onChange={(e) => handleChange('thinkingBudget', parseInt(e.target.value) || 0)}
-                  min={1024}
-                  max={128000}
-                  placeholder="10000"
-                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
-                />
-              )}
-            </div>
+            {settings.reasoningEffort !== '' && (
+              <select
+                value={settings.reasoningEffort}
+                onChange={(e) => handleChange('reasoningEffort', e.target.value)}
+                className={cn(selectClass, 'w-32')}
+              >
+                {COMPATIBLE_EFFORT_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            )}
           </div>
-        )}
+
+          {/* Budget option */}
+          <div className="flex items-center justify-between py-1">
+            <div className="flex items-center gap-2">
+              <input
+                type="radio"
+                id="compatible-budget"
+                name="compatible-mode"
+                checked={settings.reasoningEffort === '' && settings.thinkingBudget > 0}
+                onChange={() => handleMultiChange({ reasoningEffort: '', thinkingBudget: 10000 })}
+                className="size-4"
+              />
+              <label htmlFor="compatible-budget" className="text-sm">
+                {t('ai_settings.thinking_budget_mode')}
+              </label>
+              <span className="text-xs text-muted-foreground">{t('ai_settings.anthropic_gemini_models')}</span>
+            </div>
+            {settings.reasoningEffort === '' && settings.thinkingBudget > 0 && (
+              <input
+                type="number"
+                value={settings.thinkingBudget}
+                onChange={(e) => handleChange('thinkingBudget', parseInt(e.target.value) || 0)}
+                min={1024}
+                max={128000}
+                placeholder="10000"
+                className={cn(inputClass, 'w-24')}
+              />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* AI Behavior Section */}
+      <div className="pb-1 pt-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        AI
       </div>
 
       {/* Summary Language */}
-      <div>
-        <label className="block text-sm font-medium mb-2">{t('ai_settings.summary_language')}</label>
+      <div className="flex items-center justify-between py-2">
+        <div>
+          <span className="text-sm font-medium">{t('ai_settings.summary_language')}</span>
+          <p className="text-xs text-muted-foreground">{t('ai_settings.summary_language_hint')}</p>
+        </div>
         <select
           value={settings.summaryLanguage}
           onChange={(e) => handleChange('summaryLanguage', e.target.value)}
-          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
+          className={selectClass}
         >
           {SUMMARY_LANGUAGE_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
         </select>
-        <p className="text-xs text-muted-foreground mt-1">
-          {t('ai_settings.summary_language_hint')}
-        </p>
       </div>
 
       {/* Auto Translate */}
-      <div className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          id="autoTranslate"
+      <div className="flex items-center justify-between py-2">
+        <div>
+          <span className="text-sm font-medium">{t('ai_settings.auto_translate')}</span>
+          <p className="text-xs text-muted-foreground">{t('ai_settings.auto_translate_hint')}</p>
+        </div>
+        <Switch
           checked={settings.autoTranslate}
-          onChange={(e) => handleChange('autoTranslate', e.target.checked)}
-          className="size-4 rounded border-border"
+          onCheckedChange={(checked) => handleChange('autoTranslate', checked)}
         />
-        <label htmlFor="autoTranslate" className="text-sm font-medium">
-          {t('ai_settings.auto_translate')}
-        </label>
       </div>
-      <p className="text-xs text-muted-foreground -mt-4 ml-6">
-        {t('ai_settings.auto_translate_hint')}
-      </p>
 
       {/* Auto Summary */}
-      <div className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          id="autoSummary"
+      <div className="flex items-center justify-between py-2">
+        <div>
+          <span className="text-sm font-medium">{t('ai_settings.auto_summary')}</span>
+          <p className="text-xs text-muted-foreground">{t('ai_settings.auto_summary_hint')}</p>
+        </div>
+        <Switch
           checked={settings.autoSummary}
-          onChange={(e) => handleChange('autoSummary', e.target.checked)}
-          className="size-4 rounded border-border"
+          onCheckedChange={(checked) => handleChange('autoSummary', checked)}
         />
-        <label htmlFor="autoSummary" className="text-sm font-medium">
-          {t('ai_settings.auto_summary')}
-        </label>
       </div>
-      <p className="text-xs text-muted-foreground -mt-4 ml-6">
-        {t('ai_settings.auto_summary_hint')}
-      </p>
 
       {/* Rate Limit */}
-      <div>
-        <label className="block text-sm font-medium mb-2">
-          {t('ai_settings.rate_limit_label')}
-        </label>
+      <div className="flex items-center justify-between py-2">
+        <div>
+          <span className="text-sm font-medium">{t('ai_settings.rate_limit_label')}</span>
+          <p className="text-xs text-muted-foreground">{t('ai_settings.rate_limit_hint')}</p>
+        </div>
         <input
           type="number"
           value={settings.rateLimit}
           onChange={(e) => handleChange('rateLimit', parseInt(e.target.value) || 10)}
           min={1}
           max={100}
-          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
+          className={cn(inputClass, 'w-20')}
         />
-        <p className="text-xs text-muted-foreground mt-1">
-          {t('ai_settings.rate_limit_hint')}
-        </p>
       </div>
 
       {/* Test & Save Buttons */}
-      <div className="flex items-center gap-3 pt-2">
+      <div className="flex items-center gap-3 pt-4">
         <button
           type="button"
           onClick={handleTest}
           disabled={isTesting || !settings.apiKey || !settings.model || (settings.provider === 'compatible' && !settings.baseUrl)}
           className={cn(
-            'flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium transition-colors',
+            'flex h-8 items-center gap-1.5 rounded-md px-4 text-sm font-medium transition-colors',
             'bg-muted hover:bg-muted/80',
             'disabled:cursor-not-allowed disabled:opacity-50'
           )}
@@ -451,12 +432,7 @@ export function AISettings() {
           ) : (
             <>
               <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 10V3L4 14h7v7l9-11h-7z"
-                />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
               <span>{t('ai_settings.test')}</span>
             </>
@@ -468,7 +444,7 @@ export function AISettings() {
           onClick={handleSave}
           disabled={isSaving}
           className={cn(
-            'flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium transition-colors',
+            'flex h-8 items-center gap-1.5 rounded-md px-4 text-sm font-medium transition-colors',
             'bg-primary text-primary-foreground hover:bg-primary/90',
             'disabled:cursor-not-allowed disabled:opacity-50'
           )}
@@ -484,12 +460,7 @@ export function AISettings() {
         </button>
 
         {testResult && (
-          <span
-            className={cn(
-              'text-sm',
-              testResult.success ? 'text-green-600 dark:text-green-400' : 'text-destructive'
-            )}
-          >
+          <span className={cn('text-sm', testResult.success ? 'text-green-600 dark:text-green-400' : 'text-destructive')}>
             {testResult.success ? t('ai_settings.test_success') + '!' : testResult.error}
           </span>
         )}
