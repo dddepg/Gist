@@ -10,6 +10,11 @@ import {
   ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { useContextMenu } from '@/hooks/useContextMenu'
 import { feedItemStyles, sidebarItemIconStyles } from './styles'
 import type { ContentType, Folder } from '@/types/api'
@@ -48,10 +53,9 @@ function RssIcon({ className }: { className?: string }) {
   )
 }
 
-function ErrorIcon({ className, title }: { className?: string; title?: string }) {
+function ErrorIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-      {title && <title>{title}</title>}
       <path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z" />
     </svg>
   )
@@ -102,11 +106,11 @@ export function FeedItem({
       <ContextMenuTrigger asChild ref={triggerRef}>
         <div
           data-active={isActive}
-          className={cn(feedItemStyles, 'group relative py-0.5 pr-2', className)}
+          className={cn(feedItemStyles, 'group relative justify-between py-0.5 pr-2', className)}
           onClick={onClick}
           {...contextMenuProps}
         >
-          <div className={cn('flex min-w-0 flex-1 items-center gap-2', hasError && 'text-red-500 dark:text-red-400')}>
+          <div className={cn('flex min-w-0 items-center', hasError && 'text-red-500 dark:text-red-400')}>
             <span className={sidebarItemIconStyles}>
               {iconPath && !iconError ? (
                 <img
@@ -119,10 +123,19 @@ export function FeedItem({
                 <RssIcon className="size-4 text-muted-foreground" />
               )}
             </span>
-            <span className="truncate">{name}</span>
+            <span className="ml-2 min-w-0 truncate">{name}</span>
+            {hasError && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="ml-1 flex shrink-0 cursor-default">
+                    <ErrorIcon className="size-3.5 text-red-500" />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="right">{errorMessage}</TooltipContent>
+              </Tooltip>
+            )}
           </div>
-          {hasError && <ErrorIcon className="shrink-0 size-3.5 text-red-500" title={errorMessage} />}
-          {unreadCount !== undefined && unreadCount > 0 && !hasError && (
+          {unreadCount !== undefined && unreadCount > 0 && (
             <span className="shrink-0 text-[0.65rem] tabular-nums text-muted-foreground">
               {unreadCount}
             </span>
