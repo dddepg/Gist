@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react'
 import { Router, useLocation, Redirect } from 'wouter'
 import { ThreeColumnLayout } from '@/components/layout/three-column-layout'
 import { Sheet } from '@/components/ui/sheet'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { Sidebar } from '@/components/sidebar'
 import { AddFeedPage } from '@/components/add-feed'
 import { EntryList } from '@/components/entry-list'
@@ -225,9 +226,11 @@ function AppContent() {
 
 function App() {
   return (
-    <Router>
-      <AppContent />
-    </Router>
+    <TooltipProvider delayDuration={300}>
+      <Router>
+        <AppContent />
+      </Router>
+    </TooltipProvider>
   )
 }
 
