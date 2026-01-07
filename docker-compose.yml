@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  gist:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gist-rss-reader
+    ports:
+      - "38180:8080"
+    volumes:
+      - gist-data:/app/data
+    environment:
+      - GIST_ADDR=:8080
+      - GIST_DATA_DIR=/app/data
+      - GIST_DB_PATH=/app/data/gist.db
+      - GIST_STATIC_DIR=/app/frontend/dist
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  gist-data:
+    driver: local
