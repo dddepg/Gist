@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	iconTimeout        = 15 * time.Second
+	iconTimeout        = 30 * time.Second
 	maxConcurrentIcons = 4 // Concurrent icon fetch limit
 )
 
