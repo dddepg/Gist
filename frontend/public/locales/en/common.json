@@ -242,6 +242,26 @@
     "profile": "Profile",
     "logout": "Logout"
   },
+  "auth": {
+    "login": "Login",
+    "register": "Register",
+    "logging_in": "Logging in...",
+    "registering": "Registering...",
+    "login_description": "Login to continue using Gist",
+    "register_description": "Create an account to start using Gist",
+    "username": "Username",
+    "username_placeholder": "Enter your username",
+    "email": "Email",
+    "email_placeholder": "Enter your email address",
+    "email_hint": "Used to display your Gravatar avatar",
+    "password": "Password",
+    "password_placeholder": "Enter your password",
+    "password_hint": "At least 6 characters",
+    "confirm_password": "Confirm Password",
+    "confirm_password_placeholder": "Enter your password again",
+    "password_mismatch": "Passwords do not match",
+    "password_too_short": "Password must be at least 6 characters"
+  },
   "feeds": {
     "subscribed_feeds": "Subscribed Feeds ({{count}})",
     "refresh_all": "Refresh All",

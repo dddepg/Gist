@@ -118,6 +118,18 @@ definitions:
       success:
         type: boolean
     type: object
+  internal_handler.authResponse:
+    properties:
+      token:
+        type: string
+      user:
+        $ref: '#/definitions/internal_handler.userResponse'
+    type: object
+  internal_handler.authStatusResponse:
+    properties:
+      exists:
+        type: boolean
+    type: object
   internal_handler.batchTranslateRequest:
     properties:
       articles:
@@ -326,6 +338,13 @@ definitions:
       status:
         type: string
     type: object
+  internal_handler.loginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    type: object
   internal_handler.markAllReadRequest:
     properties:
       contentType:
@@ -338,6 +357,15 @@ definitions:
   internal_handler.readableContentResponse:
     properties:
       readableContent:
+        type: string
+    type: object
+  internal_handler.registerRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+      username:
         type: string
     type: object
   internal_handler.starredCountResponse:
@@ -413,6 +441,15 @@ definitions:
   internal_handler.updateTypeRequest:
     properties:
       type:
+        type: string
+    type: object
+  internal_handler.userResponse:
+    properties:
+      avatarUrl:
+        type: string
+      email:
+        type: string
+      username:
         type: string
     type: object
 info:
@@ -569,6 +606,131 @@ paths:
       summary: Proxy external image
       tags:
       - proxy
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate a user and get a JWT token
+      parameters:
+      - description: Login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.loginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.authResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+      summary: Login
+      tags:
+      - auth
+  /auth/logout:
+    post:
+      description: Clear authentication cookie and log out the user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Logout
+      tags:
+      - auth
+  /auth/me:
+    get:
+      description: Get the currently authenticated user's info
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.userResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get current user
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Register a new user (only if none exists)
+      parameters:
+      - description: Registration info
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handler.registerRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.authResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+      summary: Register user
+      tags:
+      - auth
+  /auth/status:
+    get:
+      description: Check if a user has been registered
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.authStatusResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_handler.errorResponse'
+      summary: Check user status
+      tags:
+      - auth
   /entries:
     get:
       description: Get a list of entries with optional filters and pagination
