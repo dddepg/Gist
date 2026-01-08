@@ -163,16 +163,16 @@ func parseChallenge(body []byte) (*Challenge, error) {
 }
 
 // solveChallenge computes the solution for the Anubis challenge
+// Algorithm: sha256(randomData) - Anubis uses simple hash, not actual PoW with nonce
 func solveChallenge(challenge *Challenge) string {
-	// 1. Compute sha256 of randomData
-	hash := sha256.Sum256([]byte(challenge.Challenge.RandomData))
-	result := hex.EncodeToString(hash[:])
+	randomData := challenge.Challenge.RandomData
 
-	// 2. Wait for the required time (add 100ms buffer for safety)
-	waitTime := time.Duration(challenge.Rules.Difficulty)*125*time.Millisecond + 100*time.Millisecond
-	time.Sleep(waitTime)
+	// Compute sha256(randomData)
+	hash := sha256.Sum256([]byte(randomData))
+	hashHex := hex.EncodeToString(hash[:])
 
-	return result
+	logger.Debug("anubis challenge solved", "hash", hashHex[:16]+"...")
+	return hashHex
 }
 
 // submit sends the solution to Anubis and retrieves the cookie
@@ -221,6 +221,8 @@ func (s *Solver) submit(ctx context.Context, originalURL, challengeID, result st
 		headers = append(headers, []string{"cookie", strings.Join(cookieParts, "; ")})
 	}
 
+	logger.Debug("anubis submitting solution", "url", submitURL)
+
 	// Send request with redirect disabled to capture Set-Cookie header
 	resp, err := session.Do(&azuretls.Request{
 		Method:           http.MethodGet,
@@ -229,11 +231,15 @@ func (s *Solver) submit(ctx context.Context, originalURL, challengeID, result st
 		DisableRedirects: true,
 	})
 	if err != nil {
+		logger.Debug("anubis submit request failed", "error", err)
 		return "", time.Time{}, fmt.Errorf("submit request: %w", err)
 	}
 
+	logger.Debug("anubis submit response", "status", resp.StatusCode, "cookies", len(resp.Cookies))
+
 	// Expected: 302 redirect with Set-Cookie
 	if resp.StatusCode != http.StatusFound && resp.StatusCode != http.StatusOK {
+		logger.Debug("anubis unexpected status", "status", resp.StatusCode, "body", string(resp.Body))
 		return "", time.Time{}, fmt.Errorf("unexpected status %d: %s", resp.StatusCode, string(resp.Body))
 	}
 
@@ -246,6 +252,7 @@ func (s *Solver) submit(ctx context.Context, originalURL, challengeID, result st
 	}
 
 	if len(anubisCookieParts) == 0 {
+		logger.Debug("anubis no cookies found", "allCookies", resp.Cookies)
 		return "", time.Time{}, fmt.Errorf("no anubis cookies in response")
 	}
 
