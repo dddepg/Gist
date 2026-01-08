@@ -8,13 +8,26 @@ import { AddFeedPage } from '@/components/add-feed'
 import { EntryList } from '@/components/entry-list'
 import { EntryContent } from '@/components/entry-content'
 import { PictureMasonry, Lightbox } from '@/components/picture-masonry'
+import { LoginPage, RegisterPage } from '@/components/auth'
 import { useSelection, selectionToParams } from '@/hooks/useSelection'
 import { useMarkAllAsRead } from '@/hooks/useEntries'
 import { useMobileLayout } from '@/hooks/useMobileLayout'
+import { useAuth } from '@/hooks/useAuth'
 import { isAddFeedPath } from '@/lib/router'
 import type { ContentType } from '@/types/api'
 
-function AppContent() {
+function LoadingScreen() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-4">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        <p className="text-sm text-muted-foreground">Loading...</p>
+      </div>
+    </div>
+  )
+}
+
+function AuthenticatedApp() {
   const [location, navigate] = useLocation()
   const {
     isMobile,
@@ -222,6 +235,28 @@ function AppContent() {
       content={<EntryContent key={selectedEntryId} entryId={selectedEntryId} />}
     />
   )
+}
+
+function AppContent() {
+  const { isLoading, isAuthenticated, needsRegistration, needsLogin, error, login, register, clearError } = useAuth()
+
+  if (isLoading) {
+    return <LoadingScreen />
+  }
+
+  if (needsRegistration) {
+    return <RegisterPage onRegister={register} error={error} onClearError={clearError} />
+  }
+
+  if (needsLogin) {
+    return <LoginPage onLogin={login} error={error} onClearError={clearError} />
+  }
+
+  if (isAuthenticated) {
+    return <AuthenticatedApp />
+  }
+
+  return <LoadingScreen />
 }
 
 function App() {

@@ -7,6 +7,7 @@ import (
 
 	_ "gist/backend/docs"
 	"gist/backend/internal/handler"
+	"gist/backend/internal/service"
 )
 
 func NewRouter(
@@ -18,6 +19,8 @@ func NewRouter(
 	proxyHandler *handler.ProxyHandler,
 	settingsHandler *handler.SettingsHandler,
 	aiHandler *handler.AIHandler,
+	authHandler *handler.AuthHandler,
+	authService service.AuthService,
 	staticDir string,
 ) *echo.Echo {
 	e := echo.New()
@@ -27,7 +30,14 @@ func NewRouter(
 
 	e.GET("/swagger/*", echoSwagger.WrapHandler)
 
+	// Public API routes (no auth required)
+	publicAPI := e.Group("/api")
+	authHandler.RegisterPublicRoutes(publicAPI)
+
+	// Protected API routes (auth required)
 	api := e.Group("/api")
+	api.Use(JWTAuthMiddleware(authService))
+
 	folderHandler.RegisterRoutes(api)
 	feedHandler.RegisterRoutes(api)
 	entryHandler.RegisterRoutes(api)
@@ -36,6 +46,7 @@ func NewRouter(
 	settingsHandler.RegisterRoutes(api)
 	aiHandler.RegisterRoutes(api)
 	iconHandler.RegisterAPIRoutes(api)
+	authHandler.RegisterProtectedRoutes(api)
 
 	// Icon routes with cache recovery
 	iconHandler.RegisterRoutes(e)

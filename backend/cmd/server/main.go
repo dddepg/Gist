@@ -83,6 +83,7 @@ func main() {
 
 	proxyService := service.NewProxyService(anubisSolver)
 	aiService := service.NewAIService(aiSummaryRepo, aiTranslationRepo, aiListTranslationRepo, settingsRepo, rateLimiter)
+	authService := service.NewAuthService(settingsRepo)
 
 	folderHandler := handler.NewFolderHandler(folderService)
 	feedHandler := handler.NewFeedHandler(feedService, refreshService)
@@ -93,8 +94,9 @@ func main() {
 	proxyHandler := handler.NewProxyHandler(proxyService)
 	settingsHandler := handler.NewSettingsHandler(settingsService)
 	aiHandler := handler.NewAIHandler(aiService)
+	authHandler := handler.NewAuthHandler(authService)
 
-	router := transport.NewRouter(folderHandler, feedHandler, entryHandler, opmlHandler, iconHandler, proxyHandler, settingsHandler, aiHandler, cfg.StaticDir)
+	router := transport.NewRouter(folderHandler, feedHandler, entryHandler, opmlHandler, iconHandler, proxyHandler, settingsHandler, aiHandler, authHandler, authService, cfg.StaticDir)
 
 	// Start background scheduler (15 minutes interval)
 	sched := scheduler.New(refreshService, 15*time.Minute)

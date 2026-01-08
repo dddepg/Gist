@@ -241,6 +241,26 @@
     "profile": "个人资料",
     "logout": "退出登录"
   },
+  "auth": {
+    "login": "登录",
+    "register": "注册",
+    "logging_in": "登录中...",
+    "registering": "注册中...",
+    "login_description": "登录以继续使用 Gist",
+    "register_description": "创建账户以开始使用 Gist",
+    "username": "用户名",
+    "username_placeholder": "请输入用户名",
+    "email": "邮箱",
+    "email_placeholder": "请输入邮箱地址",
+    "email_hint": "用于显示 Gravatar 头像",
+    "password": "密码",
+    "password_placeholder": "请输入密码",
+    "password_hint": "至少 6 个字符",
+    "confirm_password": "确认密码",
+    "confirm_password_placeholder": "请再次输入密码",
+    "password_mismatch": "两次输入的密码不一致",
+    "password_too_short": "密码至少需要 6 个字符"
+  },
   "feeds": {
     "subscribed_feeds": "已订阅的订阅源 ({{count}})",
     "refresh_all": "全部更新",

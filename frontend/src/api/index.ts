@@ -15,6 +15,7 @@ import type {
 import type { AISettings, AITestRequest, AITestResponse, GeneralSettings } from '@/types/settings'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? ''
+const TOKEN_KEY = 'gist_auth_token'
 
 export class ApiError extends Error {
   status: number
@@ -47,6 +48,26 @@ async function parseResponse(response: Response): Promise<unknown> {
   return text
 }
 
+// Token management
+export function getAuthToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY)
+}
+
+export function setAuthToken(token: string): void {
+  localStorage.setItem(TOKEN_KEY, token)
+}
+
+export function clearAuthToken(): void {
+  localStorage.removeItem(TOKEN_KEY)
+}
+
+// Callback for handling 401 errors (set by auth store)
+let onUnauthorized: (() => void) | null = null
+
+export function setOnUnauthorized(callback: () => void): void {
+  onUnauthorized = callback
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE_URL}${path}`
   const headers = new Headers(options.headers)
@@ -56,6 +77,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     headers.set('Content-Type', 'application/json')
   }
 
+  // Add auth token if available
+  const token = getAuthToken()
+  if (token && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`)
+  }
+
   const response = await fetch(url, {
     ...options,
     headers,
@@ -63,6 +90,11 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   const data = await parseResponse(response)
   if (!response.ok) {
+    // Handle 401 Unauthorized
+    if (response.status === 401 && onUnauthorized) {
+      onUnauthorized()
+    }
+
     const message = isErrorResponse(data)
       ? data.error
       : typeof data === 'string'
@@ -76,6 +108,51 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   }
 
   return data as T
+}
+
+// Auth API types
+export interface AuthUser {
+  username: string
+  email: string
+  avatarUrl: string
+}
+
+export interface AuthResponse {
+  token: string
+  user: AuthUser
+}
+
+export interface AuthStatusResponse {
+  exists: boolean
+}
+
+// Auth API functions
+export async function checkAuthStatus(): Promise<AuthStatusResponse> {
+  return request<AuthStatusResponse>('/api/auth/status')
+}
+
+export async function register(username: string, email: string, password: string): Promise<AuthResponse> {
+  return request<AuthResponse>('/api/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({ username, email, password }),
+  })
+}
+
+export async function login(username: string, password: string): Promise<AuthResponse> {
+  return request<AuthResponse>('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ username, password }),
+  })
+}
+
+export async function getCurrentUser(): Promise<AuthUser> {
+  return request<AuthUser>('/api/auth/me')
+}
+
+export async function logout(): Promise<void> {
+  return request<void>('/api/auth/logout', {
+    method: 'POST',
+  })
 }
 
 export async function listFolders(): Promise<Folder[]> {
@@ -259,8 +336,15 @@ export async function startImportOPML(file: File): Promise<void> {
   formData.append('file', file)
 
   const url = `${API_BASE_URL}/api/opml/import`
+  const headers: HeadersInit = {}
+  const token = getAuthToken()
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
   const response = await fetch(url, {
     method: 'POST',
+    headers,
     body: formData,
   })
 
@@ -283,7 +367,12 @@ export function watchImportStatus(onUpdate: (task: ImportTask) => void): () => v
 
   const connect = async () => {
     try {
-      const response = await fetch(url)
+      const headers: HeadersInit = {}
+      const token = getAuthToken()
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+      const response = await fetch(url, { headers })
       if (!response.ok || !response.body) return
 
       const reader = response.body.getReader()
@@ -329,7 +418,13 @@ export function watchImportStatus(onUpdate: (task: ImportTask) => void): () => v
 }
 
 export async function exportOPML(): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/opml/export`)
+  const headers: HeadersInit = {}
+  const token = getAuthToken()
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/opml/export`, { headers })
   if (!response.ok) {
     throw new ApiError('Export failed', response.status)
   }
@@ -390,9 +485,15 @@ export async function* streamSummary(
   signal?: AbortSignal
 ): AsyncGenerator<string | { cached: true; summary: string }> {
   const url = `${API_BASE_URL}/api/ai/summarize`
+  const headers: HeadersInit = { 'Content-Type': 'application/json' }
+  const token = getAuthToken()
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
   const response = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(req),
     signal,
   })
@@ -497,9 +598,15 @@ export async function* streamTranslateBlocks(
   signal?: AbortSignal
 ): AsyncGenerator<TranslateEvent | { cached: true; content: string }> {
   const url = `${API_BASE_URL}/api/ai/translate`
+  const headers: HeadersInit = { 'Content-Type': 'application/json' }
+  const token = getAuthToken()
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
   const response = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(req),
     signal,
   })
@@ -595,9 +702,15 @@ export async function* streamBatchTranslate(
   signal?: AbortSignal
 ): AsyncGenerator<BatchTranslateResult> {
   const url = `${API_BASE_URL}/api/ai/translate/batch`
+  const headers: HeadersInit = { 'Content-Type': 'application/json' }
+  const token = getAuthToken()
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
   const response = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ articles }),
     signal,
   })

@@ -15,6 +15,7 @@ import { SettingsModal } from '@/components/settings'
 import { useFolders, useDeleteFolder, useUpdateFolderType } from '@/hooks/useFolders'
 import { useFeeds, useDeleteFeed, useUpdateFeed, useUpdateFeedType } from '@/hooks/useFeeds'
 import { useUnreadCounts, useStarredCount } from '@/hooks/useEntries'
+import { useAuth } from '@/hooks/useAuth'
 import type { SelectionType } from '@/hooks/useSelection'
 import type { Folder, Feed, ContentType } from '@/types/api'
 
@@ -110,6 +111,7 @@ export function Sidebar({
   onContentTypeChange,
 }: SidebarProps) {
   const { t } = useTranslation()
+  const { user, logout } = useAuth()
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [sortBy, setSortBy] = useState<SortBy>('name')
 
@@ -249,11 +251,14 @@ export function Sidebar({
   return (
     <div className="flex h-full flex-col bg-sidebar">
       <SidebarHeader
+        avatarUrl={user?.avatarUrl}
+        userName={user?.username}
         onAddClick={() => onAddClick?.(contentType)}
         starredCount={starredCountData?.count}
         isStarredSelected={isStarredSelected}
         onStarredClick={onSelectStarred}
         onSettingsClick={() => setIsSettingsOpen(true)}
+        onLogoutClick={logout}
       />
 
       {/* Content Type Switcher */}
