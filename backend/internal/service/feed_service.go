@@ -22,7 +22,7 @@ import (
 	"gist/backend/internal/service/anubis"
 )
 
-const feedTimeout = 20 * time.Second
+const feedTimeout = 30 * time.Second
 
 type FeedService interface {
 	Add(ctx context.Context, feedURL string, folderID *int64, titleOverride string, feedType string) (model.Feed, error)

@@ -14,7 +14,7 @@ import (
 	"gist/backend/internal/service/anubis"
 )
 
-const proxyTimeout = 15 * time.Second
+const proxyTimeout = 30 * time.Second
 
 var (
 	ErrInvalidURL      = fmt.Errorf("invalid URL")
