@@ -11,14 +11,16 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['logo.svg'],
+      includeAssets: ['logo.svg', 'favicon.ico', 'apple-touch-icon-180x180.png'],
       manifest: {
         name: 'Gist - RSS Reader',
         short_name: 'Gist',
         description: 'A modern RSS reader',
-        theme_color: '#f26522',
-        background_color: '#ffffff',
+        theme_color: '#ED5B2D',
+        background_color: '#F6F6E9',
         display: 'standalone',
+        start_url: '/',
+        scope: '/',
         icons: [
           {
             src: 'pwa-64x64.png',
@@ -44,7 +46,10 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,json}'],
+        // SPA fallback for client-side routing
+        navigateFallback: 'index.html',
+        navigateFallbackDenylist: [/^\/api/],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -75,6 +80,10 @@ export default defineConfig({
             },
           },
         ],
+      },
+      // Enable SW in dev for testing (optional, can be removed)
+      devOptions: {
+        enabled: false,
       },
     }),
   ],

@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 
 interface SheetProps {
@@ -8,8 +9,6 @@ interface SheetProps {
 }
 
 export function Sheet({ open, onOpenChange, children }: SheetProps) {
-  const overlayRef = useRef<HTMLDivElement>(null)
-
   // Close on escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -34,26 +33,45 @@ export function Sheet({ open, onOpenChange, children }: SheetProps) {
   }, [open])
 
   return (
-    <>
-      {/* Overlay */}
-      <div
-        ref={overlayRef}
-        className={cn(
-          'fixed inset-0 z-50 bg-black/50 transition-opacity duration-300',
-          open ? 'opacity-100' : 'opacity-0 pointer-events-none'
-        )}
-        onClick={() => onOpenChange(false)}
-      />
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          key="sheet-container"
+          initial="closed"
+          animate="open"
+          exit="closed"
+        >
+          {/* Overlay */}
+          <motion.div
+            variants={{
+              open: { opacity: 1 },
+              closed: { opacity: 0 },
+            }}
+            transition={{ duration: 0.2 }}
+            className={cn(
+              'fixed z-50 bg-black/50',
+              // Extend to cover safe area (notch/home indicator)
+              'top-[calc(-1*env(safe-area-inset-top,0px))]',
+              'bottom-[calc(-1*env(safe-area-inset-bottom,0px))]',
+              'left-[calc(-1*env(safe-area-inset-left,0px))]',
+              'right-[calc(-1*env(safe-area-inset-right,0px))]'
+            )}
+            onClick={() => onOpenChange(false)}
+          />
 
-      {/* Sheet content */}
-      <div
-        className={cn(
-          'fixed inset-y-0 left-0 z-50 w-[280px] bg-sidebar shadow-xl transition-transform duration-300 ease-out',
-          open ? 'translate-x-0' : '-translate-x-full'
-        )}
-      >
-        {children}
-      </div>
-    </>
+          {/* Sheet content */}
+          <motion.div
+            variants={{
+              open: { x: 0 },
+              closed: { x: '-100%' },
+            }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="fixed inset-y-0 left-0 z-50 w-[280px] bg-sidebar shadow-xl"
+          >
+            {children}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   )
 }
