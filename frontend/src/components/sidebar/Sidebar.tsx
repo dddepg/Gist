@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
@@ -119,21 +119,14 @@ export function Sidebar({
   // Animation direction tracking
   const contentTypeList: ContentType[] = ['article', 'picture', 'notification']
   const orderIndex = contentTypeList.indexOf(contentType)
-  const prevOrderIndexRef = useRef(-1)
-  const [isReady, setIsReady] = useState(false)
-  const [direction, setDirection] = useState<'left' | 'right'>('right')
-  const [currentAnimatedType, setCurrentAnimatedType] = useState(contentType)
+  const prevOrderIndexRef = useRef(orderIndex)
+  const directionRef = useRef<1 | -1>(1)
 
-  useLayoutEffect(() => {
-    const prevOrderIndex = prevOrderIndexRef.current
-    if (prevOrderIndex !== orderIndex) {
-      if (prevOrderIndex < orderIndex) setDirection('right')
-      else setDirection('left')
-    }
-    setTimeout(() => setCurrentAnimatedType(contentType), 0)
-    if (prevOrderIndexRef.current !== -1) setIsReady(true)
+  // Calculate direction synchronously before render
+  if (prevOrderIndexRef.current !== orderIndex) {
+    directionRef.current = orderIndex > prevOrderIndexRef.current ? 1 : -1
     prevOrderIndexRef.current = orderIndex
-  }, [orderIndex, contentType])
+  }
 
   const { data: allFolders = [] } = useFolders()
   const { data: allFeeds = [] } = useFeeds()
@@ -143,14 +136,14 @@ export function Sidebar({
   const { mutate: updateFeedType } = useUpdateFeedType()
   const { mutate: updateFolderType } = useUpdateFolderType()
 
-  // Filter by content type (use currentAnimatedType for animation consistency)
+  // Filter by content type
   const folders = useMemo(
-    () => allFolders.filter((f) => f.type === currentAnimatedType),
-    [allFolders, currentAnimatedType]
+    () => allFolders.filter((f) => f.type === contentType),
+    [allFolders, contentType]
   )
   const feeds = useMemo(
-    () => allFeeds.filter((f) => f.type === currentAnimatedType),
-    [allFeeds, currentAnimatedType]
+    () => allFeeds.filter((f) => f.type === contentType),
+    [allFeeds, contentType]
   )
 
   const { data: unreadCountsData } = useUnreadCounts()
@@ -210,7 +203,24 @@ export function Sidebar({
     return map
   }, [feeds, unreadCounts])
 
+  // Use contentType directly for filtering (no delay)
   const { foldersWithFeeds, uncategorizedFeeds } = groupFeedsByFolder(folders, feeds)
+
+  // Animation variants for slide transition
+  const slideVariants = {
+    enter: (direction: number) => ({
+      x: direction > 0 ? '100%' : '-100%',
+      opacity: 0,
+    }),
+    center: {
+      x: 0,
+      opacity: 1,
+    },
+    exit: (direction: number) => ({
+      x: direction > 0 ? '-100%' : '100%',
+      opacity: 0,
+    }),
+  }
 
   // Sort feeds helper
   const sortFeeds = useCallback(
@@ -331,13 +341,19 @@ export function Sidebar({
 
       {/* Content */}
       <div className="relative flex-1 overflow-hidden">
-        <AnimatePresence mode="popLayout">
+        <AnimatePresence initial={false} mode="popLayout" custom={directionRef.current}>
           <motion.div
-            key={currentAnimatedType}
-            initial={isReady ? { x: direction === 'right' ? '100%' : '-100%' } : false}
-            animate={{ x: 0 }}
-            exit={{ x: direction === 'right' ? '-100%' : '100%' }}
-            transition={{ type: 'spring', duration: 0.4, bounce: 0.15 }}
+            key={contentType}
+            custom={directionRef.current}
+            variants={slideVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{
+              x: { type: 'spring', stiffness: 300, damping: 30 },
+              opacity: { duration: 0.2 },
+            }}
+            style={{ willChange: 'transform, opacity' }}
             className="absolute inset-0 overflow-y-auto px-1 py-2 space-y-1"
           >
             {/* Feed categories header with sort */}

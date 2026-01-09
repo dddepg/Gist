@@ -14,6 +14,7 @@ import { useMarkAllAsRead } from '@/hooks/useEntries'
 import { useMobileLayout } from '@/hooks/useMobileLayout'
 import { useAuth } from '@/hooks/useAuth'
 import { isAddFeedPath } from '@/lib/router'
+import { usePWAHistory } from '@/hooks/usePWAHistory'
 import type { ContentType } from '@/types/api'
 
 function LoadingScreen() {
@@ -114,46 +115,33 @@ function AuthenticatedApp() {
     />
   )
 
-  // Mobile layout
+  // Mobile layout - Sheet is rendered once at the top level to prevent animation flickering
   if (isMobile) {
+    // Determine mobile content based on current route/mode
+    let mobileContent: React.ReactNode
+
     if (isAddFeedPath(location)) {
-      return (
-        <>
-          <div className="h-screen">
-            <AddFeedPage onClose={handleCloseAddFeed} contentType={addFeedContentType} />
-          </div>
-          <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-            {sidebarContent}
-          </Sheet>
-        </>
+      mobileContent = (
+        <div className="h-screen">
+          <AddFeedPage onClose={handleCloseAddFeed} contentType={addFeedContentType} />
+        </div>
       )
-    }
-
-    // Mobile picture mode - use masonry
-    if (contentType === 'picture') {
-      return (
-        <>
-          <div className="h-screen flex flex-col overflow-hidden">
-            <PictureMasonry
-              selection={selection}
-              contentType={contentType}
-              unreadOnly={unreadOnly}
-              onToggleUnreadOnly={toggleUnreadOnly}
-              onMarkAllRead={handleMarkAllRead}
-              isMobile
-              onMenuClick={handleOpenSidebar}
-            />
-          </div>
-          <Lightbox />
-          <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-            {sidebarContent}
-          </Sheet>
-        </>
+    } else if (contentType === 'picture') {
+      mobileContent = (
+        <div className="h-screen flex flex-col overflow-hidden">
+          <PictureMasonry
+            selection={selection}
+            contentType={contentType}
+            unreadOnly={unreadOnly}
+            onToggleUnreadOnly={toggleUnreadOnly}
+            onMarkAllRead={handleMarkAllRead}
+            isMobile
+            onMenuClick={handleOpenSidebar}
+          />
+        </div>
       )
-    }
-
-    return (
-      <>
+    } else {
+      mobileContent = (
         <div className="h-screen flex flex-col overflow-hidden">
           {mobileView === 'list' ? (
             <EntryList
@@ -176,6 +164,15 @@ function AuthenticatedApp() {
             />
           )}
         </div>
+      )
+    }
+
+    return (
+      <>
+        {mobileContent}
+        {/* Lightbox for picture mode */}
+        {contentType === 'picture' && <Lightbox />}
+        {/* Sheet rendered once to prevent animation flickering on route/mode changes */}
         <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
           {sidebarContent}
         </Sheet>
@@ -260,6 +257,9 @@ function AppContent() {
 }
 
 function App() {
+  // Handle iOS PWA back gesture navigation
+  usePWAHistory()
+
   return (
     <TooltipProvider delayDuration={300}>
       <Router>

@@ -1,4 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
-  <rect width="256" height="256" rx="48" ry="48" fill="#f26522"/>
-  <text x="50.4%" y="45.9%" dominant-baseline="central" font-family="'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif" font-weight="900" font-size="167" fill="#fff" text-anchor="middle">阅</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#F6F6E9"/>
+  <g transform="translate(256, 256) rotate(-45)">
+    <g transform="translate(-128, -142.84)">
+      <path d="M256,0 L0,0 L128,142.84094750499287 L0,285.68189500998574 L256,285.68189500998574 L128,142.84094750499287 L256,0 Z" fill="#ED5B2D"/>
+    </g>
+  </g>
 </svg>
