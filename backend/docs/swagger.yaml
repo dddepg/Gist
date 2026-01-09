@@ -360,6 +360,8 @@ definitions:
         type: boolean
       host:
         type: string
+      ipStack:
+        type: string
       password:
         type: string
       port:
@@ -374,6 +376,8 @@ definitions:
       enabled:
         type: boolean
       host:
+        type: string
+      ipStack:
         type: string
       password:
         type: string

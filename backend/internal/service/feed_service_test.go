@@ -456,3 +456,7 @@ func (s *settingsServiceStub) SetNetworkSettings(ctx context.Context, settings *
 func (s *settingsServiceStub) GetProxyURL(ctx context.Context) string {
 	return s.proxyURL
 }
+
+func (s *settingsServiceStub) GetIPStack(ctx context.Context) string {
+	return "default"
+}

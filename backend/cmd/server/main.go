@@ -66,8 +66,8 @@ func main() {
 
 	settingsService := service.NewSettingsService(settingsRepo, rateLimiter)
 
-	// Initialize client factory for proxy support
-	clientFactory := network.NewClientFactory(settingsService)
+	// Initialize client factory for proxy and IP stack support
+	clientFactory := network.NewClientFactory(settingsService, settingsService)
 
 	// Initialize Anubis solver for bypassing Anubis protection
 	anubisStore := anubis.NewStore(settingsRepo)

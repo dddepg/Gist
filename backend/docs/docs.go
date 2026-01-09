@@ -2389,6 +2389,9 @@ const docTemplate = `{
                 "host": {
                     "type": "string"
                 },
+                "ipStack": {
+                    "type": "string"
+                },
                 "password": {
                     "type": "string"
                 },
@@ -2410,6 +2413,9 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "host": {
+                    "type": "string"
+                },
+                "ipStack": {
                     "type": "string"
                 },
                 "password": {
