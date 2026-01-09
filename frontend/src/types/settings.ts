@@ -39,6 +39,8 @@ export interface GeneralSettings {
 
 export type ProxyType = 'http' | 'socks5';
 
+export type IPStack = 'default' | 'ipv4' | 'ipv6';
+
 export interface NetworkSettings {
   enabled: boolean;
   type: ProxyType;
@@ -46,6 +48,7 @@ export interface NetworkSettings {
   port: number;
   username: string;
   password: string;
+  ipStack: IPStack;
 }
 
 export interface NetworkTestRequest {

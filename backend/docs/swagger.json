@@ -2382,6 +2382,9 @@
                 "host": {
                     "type": "string"
                 },
+                "ipStack": {
+                    "type": "string"
+                },
                 "password": {
                     "type": "string"
                 },
@@ -2403,6 +2406,9 @@
                     "type": "boolean"
                 },
                 "host": {
+                    "type": "string"
+                },
+                "ipStack": {
                     "type": "string"
                 },
                 "password": {

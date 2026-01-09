@@ -75,7 +75,12 @@
     "proxy_test": "Test Connection",
     "proxy_testing": "Testing...",
     "proxy_test_success": "Connection successful",
-    "proxy_test_failed": "Connection failed"
+    "proxy_test_failed": "Connection failed",
+    "ip_stack": "Network Stack",
+    "ip_stack_description": "Select IP protocol priority",
+    "ip_stack_default": "Default",
+    "ip_stack_ipv4": "IPv4 First",
+    "ip_stack_ipv6": "IPv6 First"
   },
   "theme": {
     "system": "Follow System",

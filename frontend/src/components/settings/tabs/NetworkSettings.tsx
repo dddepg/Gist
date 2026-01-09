@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getNetworkSettings, updateNetworkSettings, testNetworkProxy } from '@/api'
-import type { NetworkSettings as NetworkSettingsType, ProxyType } from '@/types/settings'
+import type { NetworkSettings as NetworkSettingsType, ProxyType, IPStack } from '@/types/settings'
 import { cn } from '@/lib/utils'
 import { Switch } from '@/components/ui/switch'
 import { SegmentedControl } from '@/components/ui/segmented-control'
@@ -15,6 +15,7 @@ export function NetworkSettings() {
     port: 0,
     username: '',
     password: '',
+    ipStack: 'default',
   })
   const [isSaving, setIsSaving] = useState(false)
   const [isTesting, setIsTesting] = useState(false)
@@ -43,6 +44,17 @@ export function NetworkSettings() {
 
   const handleTypeChange = (type: ProxyType) => {
     setSettings({ ...settings, type })
+  }
+
+  const handleIPStackChange = async (ipStack: IPStack) => {
+    const newSettings = { ...settings, ipStack }
+    setSettings(newSettings)
+    try {
+      await updateNetworkSettings(newSettings)
+    } catch {
+      // Revert on error
+      setSettings(settings)
+    }
   }
 
   const handleSave = async () => {
@@ -89,10 +101,31 @@ export function NetworkSettings() {
     { value: 'socks5' as ProxyType, label: 'SOCKS5' },
   ], [])
 
+  const ipStackOptions = useMemo(() => [
+    { value: 'default' as IPStack, label: t('settings.ip_stack_default') },
+    { value: 'ipv4' as IPStack, label: t('settings.ip_stack_ipv4') },
+    { value: 'ipv6' as IPStack, label: t('settings.ip_stack_ipv6') },
+  ], [t])
+
   const canTest = settings.host && settings.port > 0
 
   return (
     <div className="space-y-6">
+      {/* IP Stack */}
+      <section>
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-sm font-medium">{t('settings.ip_stack')}</div>
+            <div className="text-xs text-muted-foreground">{t('settings.ip_stack_description')}</div>
+          </div>
+          <SegmentedControl
+            value={settings.ipStack}
+            onValueChange={handleIPStackChange}
+            options={ipStackOptions}
+          />
+        </div>
+      </section>
+
       {/* Enable Proxy */}
       <section>
         <div className="flex items-center justify-between">

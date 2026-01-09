@@ -78,6 +78,7 @@ type networkSettingsResponse struct {
 	Port     int    `json:"port"`
 	Username string `json:"username"`
 	Password string `json:"password"`
+	IPStack  string `json:"ipStack"`
 }
 
 type networkSettingsRequest struct {
@@ -87,6 +88,7 @@ type networkSettingsRequest struct {
 	Port     int    `json:"port"`
 	Username string `json:"username"`
 	Password string `json:"password"`
+	IPStack  string `json:"ipStack"`
 }
 
 type networkTestRequest struct {
@@ -321,6 +323,7 @@ func (h *SettingsHandler) GetNetworkSettings(c echo.Context) error {
 		Port:     settings.Port,
 		Username: settings.Username,
 		Password: settings.Password,
+		IPStack:  settings.IPStack,
 	})
 }
 
@@ -348,6 +351,7 @@ func (h *SettingsHandler) UpdateNetworkSettings(c echo.Context) error {
 		Port:     req.Port,
 		Username: req.Username,
 		Password: req.Password,
+		IPStack:  req.IPStack,
 	}
 
 	if err := h.service.SetNetworkSettings(c.Request().Context(), settings); err != nil {

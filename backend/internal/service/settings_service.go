@@ -38,6 +38,7 @@ type NetworkSettings struct {
 	Port     int    `json:"port"`
 	Username string `json:"username"`
 	Password string `json:"password"`
+	IPStack  string `json:"ipStack"` // default, ipv4, ipv6
 }
 
 // Setting keys
@@ -63,6 +64,7 @@ const (
 	keyNetworkPort     = "network.proxy_port"
 	keyNetworkUsername = "network.proxy_username"
 	keyNetworkPassword = "network.proxy_password"
+	keyNetworkIPStack  = "network.ip_stack"
 )
 
 // SettingsService provides settings management.
@@ -89,6 +91,8 @@ type SettingsService interface {
 	// GetProxyURL returns the formatted proxy URL (e.g., socks5://user:pass@host:port).
 	// Returns empty string if proxy is disabled.
 	GetProxyURL(ctx context.Context) string
+	// GetIPStack returns the IP stack preference (default, ipv4, ipv6).
+	GetIPStack(ctx context.Context) string
 }
 
 type settingsService struct {
@@ -355,7 +359,8 @@ func (s *settingsService) ClearAnubisCookies(ctx context.Context) (int64, error)
 // GetNetworkSettings returns the network proxy configuration.
 func (s *settingsService) GetNetworkSettings(ctx context.Context) (*NetworkSettings, error) {
 	settings := &NetworkSettings{
-		Type: "http", // default
+		Type:    "http",    // default
+		IPStack: "default", // default
 	}
 
 	if val, err := s.getString(ctx, keyNetworkEnabled); err == nil && val == "true" {
@@ -375,6 +380,9 @@ func (s *settingsService) GetNetworkSettings(ctx context.Context) (*NetworkSetti
 	}
 	if val, err := s.getString(ctx, keyNetworkPassword); err == nil && val != "" {
 		settings.Password = maskAPIKey(val)
+	}
+	if val, err := s.getString(ctx, keyNetworkIPStack); err == nil && val != "" {
+		settings.IPStack = val
 	}
 
 	return settings, nil
@@ -413,7 +421,25 @@ func (s *settingsService) SetNetworkSettings(ctx context.Context, settings *Netw
 		return fmt.Errorf("set network password: %w", err)
 	}
 
+	// Set IP stack preference
+	ipStack := settings.IPStack
+	if ipStack == "" {
+		ipStack = "default"
+	}
+	if err := s.repo.Set(ctx, keyNetworkIPStack, ipStack); err != nil {
+		return fmt.Errorf("set ip stack: %w", err)
+	}
+
 	return nil
+}
+
+// GetIPStack returns the IP stack preference (default, ipv4, ipv6).
+func (s *settingsService) GetIPStack(ctx context.Context) string {
+	val, err := s.getString(ctx, keyNetworkIPStack)
+	if err != nil || val == "" {
+		return "default"
+	}
+	return val
 }
 
 // GetProxyURL returns the formatted proxy URL (e.g., socks5://user:pass@host:port).

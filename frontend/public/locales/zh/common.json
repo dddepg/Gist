@@ -75,7 +75,12 @@
     "proxy_test": "测试连接",
     "proxy_testing": "测试中...",
     "proxy_test_success": "连接成功",
-    "proxy_test_failed": "连接失败"
+    "proxy_test_failed": "连接失败",
+    "ip_stack": "网络栈",
+    "ip_stack_description": "选择 IP 协议优先级",
+    "ip_stack_default": "默认",
+    "ip_stack_ipv4": "IPv4 优先",
+    "ip_stack_ipv6": "IPv6 优先"
   },
   "theme": {
     "system": "跟随系统",
