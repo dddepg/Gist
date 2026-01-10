@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from 'react'
+import { useEffect, useCallback, useState, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { AnimatePresence, motion } from 'framer-motion'
 import useEmblaCarousel from 'embla-carousel-react'
@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { isVideoThumbnail } from '@/lib/media-utils'
 import { formatRelativeTime } from '@/lib/date-utils'
 import { stripHtml } from '@/lib/html-utils'
+import { useMarkAsRead } from '@/hooks/useEntries'
 import { useLightboxStore } from '@/stores/lightbox-store'
 import { FeedIcon } from '@/components/ui/feed-icon'
 
@@ -14,6 +15,10 @@ export function Lightbox() {
   const { t } = useTranslation()
   const { isOpen, entry, feed, images, currentIndex, close, setIndex, next, prev } =
     useLightboxStore()
+  const { mutate: markAsRead } = useMarkAsRead()
+
+  // Track which entries have been marked as read to avoid duplicate calls
+  const markedAsReadRef = useRef<Set<string>>(new Set())
 
   const [emblaRef, emblaApi] = useEmblaCarousel({
     loop: false,
@@ -22,6 +27,23 @@ export function Lightbox() {
 
   const [iconError, setIconError] = useState(false)
   const showIcon = feed?.iconPath && !iconError
+
+  // Mark entry as read when lightbox opens
+  // This is done here instead of in PictureItem to avoid race condition
+  // when unreadOnly filter is enabled (list item would disappear before lightbox opens)
+  useEffect(() => {
+    if (isOpen && entry && !entry.read && !markedAsReadRef.current.has(entry.id)) {
+      markedAsReadRef.current.add(entry.id)
+      markAsRead({ id: entry.id, read: true })
+    }
+  }, [isOpen, entry, markAsRead])
+
+  // Clear the marked set when lightbox closes
+  useEffect(() => {
+    if (!isOpen) {
+      markedAsReadRef.current.clear()
+    }
+  }, [isOpen])
 
   // Sync embla with store
   useEffect(() => {
