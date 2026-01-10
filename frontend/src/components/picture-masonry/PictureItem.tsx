@@ -6,7 +6,6 @@ import { getEntryImages } from '@/lib/extract-images'
 import { getProxiedImageUrl } from '@/lib/image-proxy'
 import { isVideoThumbnail } from '@/lib/media-utils'
 import { formatRelativeTime } from '@/lib/date-utils'
-import { useMarkAsRead } from '@/hooks/useEntries'
 import { useLightboxStore } from '@/stores/lightbox-store'
 import {
   useImageDimension,
@@ -31,7 +30,6 @@ export const PictureItem = memo(function PictureItem({
   const { t } = useTranslation()
   const openLightbox = useLightboxStore((state) => state.open)
   const setDimension = useImageDimensionsStore((state) => state.setDimension)
-  const { mutate: markAsRead } = useMarkAsRead()
 
   // Get cached dimension from store
   const thumbnailUrl = entry.thumbnailUrl
@@ -58,17 +56,14 @@ export const PictureItem = memo(function PictureItem({
   )
 
   const handleClick = useCallback(() => {
-    // Mark as read
-    if (!entry.read) {
-      markAsRead({ id: entry.id, read: true })
-    }
-
     // Open lightbox (for both image and video)
+    // Note: markAsRead is handled inside Lightbox to avoid race condition
+    // when unreadOnly filter is enabled (item would disappear before lightbox opens)
     const images = getEntryImages(entry.thumbnailUrl, entry.content, entry.url ?? undefined)
     if (images.length > 0) {
       openLightbox(entry, feed, images, 0)
     }
-  }, [entry, feed, openLightbox, markAsRead])
+  }, [entry, feed, openLightbox])
 
   const publishedAt = entry.publishedAt ? formatRelativeTime(entry.publishedAt, t) : null
 
