@@ -205,6 +205,7 @@ export function ThreeColumnLayout({
           <div
             className={cn(
               'flex h-full shrink-0 flex-col overflow-hidden bg-background',
+              'pt-[env(safe-area-inset-top,0px)]',
               !entryColResizable.isDragging && 'transition-[width] duration-200'
             )}
             style={{ width: entryColResizable.position }}
@@ -222,7 +223,7 @@ export function ThreeColumnLayout({
       )}
 
       {/* Content - right column (Entry content) */}
-      <main className="flex h-full min-w-0 flex-1 flex-col overflow-hidden bg-background">
+      <main className="flex h-full min-w-0 flex-1 flex-col overflow-hidden bg-background pt-[env(safe-area-inset-top,0px)]">
         {content}
       </main>
     </div>
