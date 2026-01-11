@@ -155,6 +155,7 @@
     "translate_article": "Translate article",
     "show_original": "Show original",
     "cancel_translation": "Cancel translation",
+    "already_target_language": "Already in target language",
     "show_readable": "Show readable",
     "open_original": "Open original",
     "close": "Close",

@@ -59,6 +59,7 @@ export function EntryContent({ entryId, isMobile, onBack }: EntryContentProps) {
   const [translatedBlocks, setTranslatedBlocks] = useState<Map<number, string>>(new Map())
   const [isTranslating, setIsTranslating] = useState(false)
   const [_translationError, setTranslationError] = useState<string | null>(null)
+  const [translationMode, setTranslationMode] = useState<boolean | null>(null)
   const translateAbortRef = useRef<AbortController | null>(null)
   const translateRequestedRef = useRef(false)
   const prevTranslateReadableRef = useRef(false)
@@ -91,6 +92,7 @@ export function EntryContent({ entryId, isMobile, onBack }: EntryContentProps) {
     setTranslatedBlocks(new Map())
     setTranslationError(null)
     setIsTranslating(false)
+    setTranslationMode(null)
     if (translateAbortRef.current) {
       translateAbortRef.current.abort()
       translateAbortRef.current = null
@@ -302,6 +304,7 @@ export function EntryContent({ entryId, isMobile, onBack }: EntryContentProps) {
     setTranslatedContent(null)
     setOriginalBlocks([])
     setTranslatedBlocks(new Map())
+    setTranslationMode(forReadability)
     translateRequestedRef.current = true
 
     const abortController = new AbortController()
@@ -378,6 +381,7 @@ export function EntryContent({ entryId, isMobile, onBack }: EntryContentProps) {
       setTranslatedContent(null)
       setOriginalBlocks([])
       setTranslatedBlocks(new Map())
+      setTranslationMode(null)
       translateRequestedRef.current = false
       manuallyDisabledRef.current = true
       // Disable translation in store (affects title and list view, prevents re-translation)
@@ -392,6 +396,7 @@ export function EntryContent({ entryId, isMobile, onBack }: EntryContentProps) {
       setIsTranslating(false)
       setOriginalBlocks([])
       setTranslatedBlocks(new Map())
+      setTranslationMode(null)
       translateRequestedRef.current = false
       manuallyDisabledRef.current = true
       // Disable translation in store (affects title and list view, prevents re-translation)
@@ -417,18 +422,6 @@ export function EntryContent({ entryId, isMobile, onBack }: EntryContentProps) {
     await generateTranslation(isReadableActive)
   }, [entry, translatedContent, originalBlocks.length, isTranslating, isReadableActive, generateTranslation, targetLanguage])
 
-  // Auto-regenerate translation when readability mode changes
-  useEffect(() => {
-    if (prevTranslateReadableRef.current !== isReadableActive) {
-      prevTranslateReadableRef.current = isReadableActive
-      // If user had requested a translation, regenerate for new mode
-      const hasTranslation = translatedContent || originalBlocks.length > 0
-      if (translateRequestedRef.current && (hasTranslation || isTranslating)) {
-        generateTranslation(isReadableActive)
-      }
-    }
-  }, [isReadableActive, translatedContent, originalBlocks.length, isTranslating, generateTranslation])
-
   // Get cached translation from store (for content)
   const cachedTranslation = useTranslationStore((state) =>
     entry && autoTranslate
@@ -443,11 +436,65 @@ export function EntryContent({ entryId, isMobile, onBack }: EntryContentProps) {
       : undefined
   )
 
+  // Auto-regenerate translation when readability mode changes
+  useEffect(() => {
+    if (prevTranslateReadableRef.current !== isReadableActive) {
+      prevTranslateReadableRef.current = isReadableActive
+      // If user had requested a translation, handle mode change
+      const hasTranslation = translatedContent || originalBlocks.length > 0
+      if (translateRequestedRef.current && (hasTranslation || isTranslating)) {
+        // First, check if we have cached translation for new mode
+        if (cachedTranslation?.content) {
+          setTranslatedContent(cachedTranslation.content)
+          setTranslationMode(isReadableActive)
+          return
+        }
+
+        // Check if new content needs translation
+        const content = isReadableActive ? readableContent : entry?.content
+        const summary = content ? stripHtml(content).slice(0, 200) : null
+        
+        if (needsTranslation(entry?.title || '', summary, targetLanguage)) {
+          // New content needs translation, regenerate
+          generateTranslation(isReadableActive)
+        } else {
+          // New content doesn't need translation, clear translation state
+          setTranslatedContent(null)
+          setOriginalBlocks([])
+          setTranslatedBlocks(new Map())
+          setTranslationMode(null)
+          translateRequestedRef.current = false
+        }
+      }
+    }
+  }, [
+    isReadableActive,
+    translatedContent,
+    originalBlocks.length,
+    isTranslating,
+    generateTranslation,
+    readableContent,
+    entry,
+    targetLanguage,
+    cachedTranslation,
+  ])
+
   // Determine display title: use translated title if available
   const displayTitle = useMemo(() => {
     if (!autoTranslate || !entry) return entry?.title || null
     return cachedTitleTranslation?.title ?? entry.title ?? null
   }, [autoTranslate, entry, cachedTitleTranslation?.title])
+
+  // Check if article is already in target language
+  const isAlreadyTargetLanguage = useMemo(() => {
+    if (!entry) return false
+    const content = isReadableActive ? readableContent : entry.content
+    const summary = content ? stripHtml(content).slice(0, 200) : null
+    return !needsTranslation(entry.title || '', summary, targetLanguage)
+  }, [entry, isReadableActive, readableContent, targetLanguage])
+
+  // Check if translation is for current mode (readability vs original)
+  const isTranslationForCurrentMode = translationMode === isReadableActive
 
   // Auto-translate when entry is selected and needs translation
   useEffect(() => {
@@ -462,6 +509,7 @@ export function EntryContent({ entryId, isMobile, onBack }: EntryContentProps) {
     // Check if we have cached translation in store
     if (cachedTranslation?.content) {
       setTranslatedContent(cachedTranslation.content)
+      setTranslationMode(isReadableActive)
       translateRequestedRef.current = true
       return
     }
@@ -490,7 +538,11 @@ export function EntryContent({ entryId, isMobile, onBack }: EntryContentProps) {
 
   // Combine blocks into display content
   // Use translated content if cached, otherwise combine original + translated blocks
+  // Only use translation if it matches current mode (readability vs original)
   const combinedTranslatedContent = useMemo(() => {
+    if (!isTranslationForCurrentMode) {
+      return null
+    }
     if (translatedContent) {
       return translatedContent // Cached full content
     }
@@ -501,29 +553,30 @@ export function EntryContent({ entryId, isMobile, onBack }: EntryContentProps) {
     return originalBlocks
       .map(block => translatedBlocks.get(block.index) ?? block.html)
       .join('')
-  }, [translatedContent, originalBlocks, translatedBlocks])
+  }, [isTranslationForCurrentMode, translatedContent, originalBlocks, translatedBlocks])
 
   const translatedContentBlocks = useMemo(() => {
     // Use blocks mode as soon as we have originalBlocks (from init event)
     // This minimizes mode switching which causes image flicker
-    if (!entry || translatedContent || originalBlocks.length === 0) {
+    // Only use translation if it matches current mode
+    if (!entry || !isTranslationForCurrentMode || translatedContent || originalBlocks.length === 0) {
       return null
     }
     return originalBlocks.map((block) => ({
       key: `${entry.id}-${block.index}`,
       html: translatedBlocks.get(block.index) ?? block.html,
     }))
-  }, [entry, translatedContent, originalBlocks, translatedBlocks])
+  }, [entry, isTranslationForCurrentMode, translatedContent, originalBlocks, translatedBlocks])
 
   // Save translation to store when completed
   useEffect(() => {
     if (!entry || !autoTranslate) return
 
     const content = combinedTranslatedContent
-    if (content && !isTranslating) {
-      translationActions.set(entry.id, targetLanguage, { content }, isReadableActive)
+    if (content && !isTranslating && translationMode !== null) {
+      translationActions.set(entry.id, targetLanguage, { content }, translationMode)
     }
-  }, [entry, autoTranslate, targetLanguage, isReadableActive, combinedTranslatedContent, isTranslating])
+  }, [entry, autoTranslate, targetLanguage, translationMode, combinedTranslatedContent, isTranslating])
 
   if (entryId === null) {
     return <EntryContentEmpty />
@@ -552,7 +605,8 @@ export function EntryContent({ entryId, isMobile, onBack }: EntryContentProps) {
         hasSummary={!!aiSummary}
         onToggleSummary={handleToggleSummary}
         isTranslating={isTranslating}
-        hasTranslation={!!(translatedContent || originalBlocks.length > 0)}
+        hasTranslation={isTranslationForCurrentMode && !!(translatedContent || originalBlocks.length > 0)}
+        translationDisabled={isAlreadyTargetLanguage}
         onToggleTranslation={handleToggleTranslation}
         isMobile={isMobile}
         onBack={onBack}
@@ -561,9 +615,9 @@ export function EntryContent({ entryId, isMobile, onBack }: EntryContentProps) {
         entry={entry}
         displayTitle={displayTitle}
         scrollRef={scrollRef}
-        displayContent={translatedContent ?? baseContent}
+        displayContent={isTranslationForCurrentMode && translatedContent ? translatedContent : baseContent}
         displayBlocks={translatedContentBlocks}
-        highlightContent={combinedTranslatedContent ?? baseContent ?? ''}
+        highlightContent={isTranslationForCurrentMode && combinedTranslatedContent ? combinedTranslatedContent : (baseContent ?? '')}
         aiSummary={aiSummary}
         isLoadingSummary={isLoadingSummary}
         summaryError={summaryError}
