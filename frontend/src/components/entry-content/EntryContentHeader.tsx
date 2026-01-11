@@ -17,6 +17,7 @@ interface EntryContentHeaderProps {
   onToggleSummary?: () => void
   isTranslating?: boolean
   hasTranslation?: boolean
+  translationDisabled?: boolean
   onToggleTranslation?: () => void
   isMobile?: boolean
   onBack?: () => void
@@ -44,6 +45,7 @@ export function EntryContentHeader({
   onToggleSummary,
   isTranslating,
   hasTranslation,
+  translationDisabled,
   onToggleTranslation,
   isMobile,
   onBack,
@@ -153,18 +155,23 @@ export function EntryContentHeader({
             <button
               type="button"
               onClick={onToggleTranslation}
+              disabled={translationDisabled && !hasTranslation && !isTranslating}
               title={
-                isTranslating
-                  ? t('entry.cancel_translation')
-                  : hasTranslation
-                    ? t('entry.show_original')
-                    : t('entry.translate_article')
+                translationDisabled && !hasTranslation && !isTranslating
+                  ? t('entry.already_target_language')
+                  : isTranslating
+                    ? t('entry.cancel_translation')
+                    : hasTranslation
+                      ? t('entry.show_original')
+                      : t('entry.translate_article')
               }
               className={cn(
                 'no-drag-region flex size-9 items-center justify-center rounded-lg transition-colors',
-                hasTranslation
-                  ? 'bg-muted text-foreground'
-                  : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                translationDisabled && !hasTranslation && !isTranslating
+                  ? 'text-muted-foreground/50 cursor-not-allowed'
+                  : hasTranslation
+                    ? 'bg-muted text-foreground'
+                    : 'text-muted-foreground hover:bg-accent hover:text-foreground'
               )}
             >
               {isTranslating ? (

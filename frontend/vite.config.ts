@@ -142,7 +142,7 @@ export default defineConfig({
           'motion-vendor': ['motion', 'framer-motion'],
           'i18n-vendor': ['i18next', 'react-i18next'],
           'utils-vendor': ['clsx', 'tailwind-merge', 'class-variance-authority', 'zustand', 'wouter'],
-          'lang-vendor': ['franc-min'],
+          'lang-vendor': ['eld'],
           'html-parser-vendor': [
             'unified',
             'rehype-parse',
