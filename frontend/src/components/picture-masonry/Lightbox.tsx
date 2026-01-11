@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useState, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion, useMotionValue, useTransform } from 'framer-motion'
 import useEmblaCarousel from 'embla-carousel-react'
 import { Play } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -16,6 +16,11 @@ export function Lightbox() {
   const { isOpen, entry, feed, images, currentIndex, close, setIndex, next, prev } =
     useLightboxStore()
   const { mutate: markAsRead } = useMarkAsRead()
+
+  // Motion values for swipe to close
+  const dragY = useMotionValue(0)
+  const opacity = useTransform(dragY, [-200, 0, 200], [0.5, 1, 0.5])
+  const scale = useTransform(dragY, [-200, 0, 200], [0.9, 1, 0.9])
 
   // Track which entries have been marked as read to avoid duplicate calls
   const markedAsReadRef = useRef<Set<string>>(new Set())
@@ -114,6 +119,7 @@ export function Lightbox() {
     <AnimatePresence>
       {isOpen && (
         <motion.div
+          style={{ opacity }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -121,7 +127,20 @@ export function Lightbox() {
           className="fixed inset-0 z-50 flex flex-col bg-black/90"
           onClick={handleOverlayClick}
         >
-          {/* Top right buttons */}
+          {/* Draggable container for content */}
+          <motion.div
+            style={{ y: dragY, scale }}
+            drag="y"
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={0.8}
+            onDragEnd={(_, info) => {
+              if (Math.abs(info.offset.y) > 100 || Math.abs(info.velocity.y) > 500) {
+                close()
+              }
+            }}
+            className="flex flex-1 flex-col"
+          >
+            {/* Top right buttons */}
           <div className="absolute right-[calc(1rem+env(safe-area-inset-right,0px))] top-[calc(1rem+env(safe-area-inset-top,0px))] z-10 flex gap-2">
             {/* Open original page */}
             {entry?.url && (
@@ -307,7 +326,8 @@ export function Lightbox() {
             </div>
           </div>
         </motion.div>
-      )}
-    </AnimatePresence>
-  )
+      </motion.div>
+    )}
+  </AnimatePresence>
+)
 }
