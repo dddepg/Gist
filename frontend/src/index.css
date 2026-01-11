@@ -428,6 +428,20 @@ body {
   word-break: break-all;
 }
 
+/* Table wrapper - isolate layout calculation to prevent iOS Safari crash */
+.entry-content-body .article-table-wrapper {
+  /* iOS 16+: isolate layout and paint to prevent tables from affecting outer layout */
+  contain: layout paint;
+}
+
+/* iOS 18+ progressive enhancement: skip rendering off-screen tables */
+@supports (content-visibility: auto) {
+  .entry-content-body .article-table-wrapper {
+    content-visibility: auto;
+    contain-intrinsic-block-size: auto 200px;
+  }
+}
+
 .entry-content-body :where(table) {
   width: 100%;
   max-width: 100%;
