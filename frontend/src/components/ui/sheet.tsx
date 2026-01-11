@@ -61,6 +61,14 @@ export function Sheet({ open, onOpenChange, children }: SheetProps) {
 
           {/* Sheet content */}
           <motion.div
+            drag="x"
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={{ left: 0.1, right: 0 }}
+            onDragEnd={(_, info) => {
+              if (info.offset.x < -50 || info.velocity.x < -300) {
+                onOpenChange(false)
+              }
+            }}
             variants={{
               open: { x: 0 },
               closed: { x: '-100%' },
@@ -73,7 +81,8 @@ export function Sheet({ open, onOpenChange, children }: SheetProps) {
               // Padding for safe area (top for portrait, left for landscape)
               'pt-[env(safe-area-inset-top,0px)]',
               'pl-[env(safe-area-inset-left,0px)]',
-              'pb-[env(safe-area-inset-bottom,0px)]'
+              'pb-[env(safe-area-inset-bottom,0px)]',
+              'touch-none' // Disable browser touch handling for drag
             )}
           >
             {children}

@@ -130,9 +130,11 @@ function AuthenticatedApp() {
 
     if (isAddFeedPath(location)) {
       mobileContent = (
-        <div className="h-screen safe-area-top">
-          <AddFeedPage onClose={handleCloseAddFeed} contentType={addFeedContentType} />
-        </div>
+        <SwipeBackView onBack={handleCloseAddFeed}>
+          <div className="h-screen safe-area-top">
+            <AddFeedPage onClose={handleCloseAddFeed} contentType={addFeedContentType} />
+          </div>
+        </SwipeBackView>
       )
     } else if (contentType === 'picture') {
       mobileContent = (
