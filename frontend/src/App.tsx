@@ -57,34 +57,40 @@ function AuthenticatedApp() {
   const [addFeedContentType, setAddFeedContentType] = useState<ContentType>('article')
 
   // Mobile-aware selection handlers (all hooks must be before any conditional returns)
+  // Use replace to avoid creating history entries for sidebar navigation
   const handleSelectFeed = useCallback((feedId: string) => {
-    selectFeed(feedId)
     closeSidebar()
+    selectFeed(feedId, { replace: true })
   }, [selectFeed, closeSidebar])
 
   const handleSelectFolder = useCallback((folderId: string) => {
-    selectFolder(folderId)
     closeSidebar()
+    selectFolder(folderId, { replace: true })
   }, [selectFolder, closeSidebar])
 
   const handleSelectStarred = useCallback(() => {
-    selectStarred()
     closeSidebar()
+    selectStarred({ replace: true })
   }, [selectStarred, closeSidebar])
 
   const handleAddClick = useCallback((ct: ContentType) => {
     setAddFeedContentType(ct)
-    navigate(`/add-feed?type=${ct}`)
     closeSidebar()
+    navigate(`/add-feed?type=${ct}`, { replace: true })
   }, [navigate, closeSidebar])
 
   const handleCloseAddFeed = useCallback(() => {
-    navigate(`/all?type=${contentType}`)
+    navigate(`/all?type=${contentType}`, { replace: true })
   }, [navigate, contentType])
 
   const handleMarkAllRead = useCallback(() => {
     markAllAsRead(selectionToParams(selection, contentType))
   }, [markAllAsRead, selection, contentType])
+
+  const handleSelectAll = useCallback((type?: ContentType) => {
+    closeSidebar()
+    selectAll(type, { replace: true })
+  }, [selectAll, closeSidebar])
 
   // Redirect root to /all with default type (must be after ALL hooks including useCallback)
   if (location === '/') {
@@ -99,7 +105,7 @@ function AuthenticatedApp() {
       onSelectFeed={handleSelectFeed}
       onSelectFolder={handleSelectFolder}
       onSelectStarred={handleSelectStarred}
-      onSelectAll={selectAll}
+      onSelectAll={handleSelectAll}
       contentType={contentType}
     />
   )

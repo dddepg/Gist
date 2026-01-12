@@ -331,6 +331,11 @@ entries_ad  -- AFTER DELETE: 同步删除 entries_fts
     *   简单全局状态可使用 `useSyncExternalStore` + 模块级变量
 *   **URL 状态持久化**：筛选状态 (unreadOnly, contentType) 通过 URL query params 持久化。
 
+### 5.7 PWA 与移动端交互
+*   **导航历史策略**：侧边栏跳转、筛选开关使用 `navigate(..., { replace: true })`，仅文章详情使用 `push` 保留边缘返回。
+*   **回退同步**：监听 `popstate`/`pageshow` 事件，回退或 BFCache 恢复时强制关闭侧边栏/弹层（统一在 `useMobileLayout` 处理）。
+*   **安全区适配**：使用 `100dvh` 与 `safe-area-*` 工具类，固定定位元素必须覆盖或适配安全区。
+
 ---
 
 ## 6. API 与交互契约

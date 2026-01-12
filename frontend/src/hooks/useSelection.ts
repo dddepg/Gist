@@ -9,14 +9,18 @@ export type SelectionType =
   | { type: 'folder'; folderId: string }
   | { type: 'starred' }
 
+interface NavigateOptions {
+  replace?: boolean
+}
+
 interface UseSelectionReturn {
   selection: SelectionType
-  selectAll: (contentType?: ContentType) => void
-  selectFeed: (feedId: string) => void
-  selectFolder: (folderId: string) => void
-  selectStarred: () => void
+  selectAll: (contentType?: ContentType, options?: NavigateOptions) => void
+  selectFeed: (feedId: string, options?: NavigateOptions) => void
+  selectFolder: (folderId: string, options?: NavigateOptions) => void
+  selectStarred: (options?: NavigateOptions) => void
   selectedEntryId: string | null
-  selectEntry: (entryId: string | null) => void
+  selectEntry: (entryId: string | null, options?: NavigateOptions) => void
   unreadOnly: boolean
   toggleUnreadOnly: () => void
   contentType: ContentType
@@ -33,39 +37,39 @@ export function useSelection(): UseSelectionReturn {
   )
 
   const selectAll = useCallback(
-    (contentType?: ContentType) => {
-      navigate(buildPath({ type: 'all' }, null, routeState.unreadOnly, contentType ?? routeState.contentType))
+    (contentType?: ContentType, options?: NavigateOptions) => {
+      navigate(buildPath({ type: 'all' }, null, routeState.unreadOnly, contentType ?? routeState.contentType), options)
     },
     [navigate, routeState.unreadOnly, routeState.contentType]
   )
 
   const selectFeed = useCallback(
-    (feedId: string) => {
-      navigate(buildPath({ type: 'feed', feedId }, null, routeState.unreadOnly, routeState.contentType))
+    (feedId: string, options?: NavigateOptions) => {
+      navigate(buildPath({ type: 'feed', feedId }, null, routeState.unreadOnly, routeState.contentType), options)
     },
     [navigate, routeState.unreadOnly, routeState.contentType]
   )
 
   const selectFolder = useCallback(
-    (folderId: string) => {
-      navigate(buildPath({ type: 'folder', folderId }, null, routeState.unreadOnly, routeState.contentType))
+    (folderId: string, options?: NavigateOptions) => {
+      navigate(buildPath({ type: 'folder', folderId }, null, routeState.unreadOnly, routeState.contentType), options)
     },
     [navigate, routeState.unreadOnly, routeState.contentType]
   )
 
-  const selectStarred = useCallback(() => {
-    navigate(buildPath({ type: 'starred' }, null, routeState.unreadOnly, routeState.contentType))
+  const selectStarred = useCallback((options?: NavigateOptions) => {
+    navigate(buildPath({ type: 'starred' }, null, routeState.unreadOnly, routeState.contentType), options)
   }, [navigate, routeState.unreadOnly, routeState.contentType])
 
   const selectEntry = useCallback(
-    (entryId: string | null) => {
-      navigate(buildPath(routeState.selection, entryId, routeState.unreadOnly, routeState.contentType))
+    (entryId: string | null, options?: NavigateOptions) => {
+      navigate(buildPath(routeState.selection, entryId, routeState.unreadOnly, routeState.contentType), options)
     },
     [navigate, routeState.selection, routeState.unreadOnly, routeState.contentType]
   )
 
   const toggleUnreadOnly = useCallback(() => {
-    navigate(buildPath(routeState.selection, routeState.entryId, !routeState.unreadOnly, routeState.contentType))
+    navigate(buildPath(routeState.selection, routeState.entryId, !routeState.unreadOnly, routeState.contentType), { replace: true })
   }, [navigate, routeState.selection, routeState.entryId, routeState.unreadOnly, routeState.contentType])
 
   const setContentType = useCallback(
