@@ -32,6 +32,27 @@ export function useMobileLayout() {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
+  // Sync sidebar state on back navigation (iOS PWA swipe gesture / browser back)
+  // This handles BFCache restoration and popstate events
+  useEffect(() => {
+    const handlePageShow = (e: PageTransitionEvent) => {
+      // persisted = true means page was restored from BFCache
+      if (e.persisted) {
+        setSidebarOpen(false)
+      }
+    }
+    const handlePopState = () => {
+      setSidebarOpen(false)
+    }
+
+    window.addEventListener('pageshow', handlePageShow)
+    window.addEventListener('popstate', handlePopState)
+    return () => {
+      window.removeEventListener('pageshow', handlePageShow)
+      window.removeEventListener('popstate', handlePopState)
+    }
+  }, [])
+
   // Navigate back to list by removing entryId from URL
   const showList = useCallback(() => {
     const routeState = parseRoute(location, search)
