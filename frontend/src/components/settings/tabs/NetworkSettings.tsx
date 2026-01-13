@@ -113,12 +113,13 @@ export function NetworkSettings() {
     <div className="space-y-6">
       {/* IP Stack */}
       <section>
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="min-w-0">
             <div className="text-sm font-medium">{t('settings.ip_stack')}</div>
             <div className="text-xs text-muted-foreground">{t('settings.ip_stack_description')}</div>
           </div>
           <SegmentedControl
+            className="shrink-0"
             value={settings.ipStack}
             onValueChange={handleIPStackChange}
             options={ipStackOptions}
@@ -128,8 +129,8 @@ export function NetworkSettings() {
 
       {/* Enable Proxy */}
       <section>
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="min-w-0">
             <div className="text-sm font-medium">{t('settings.proxy_enabled')}</div>
             <div className="text-xs text-muted-foreground">{t('settings.proxy_enabled_description')}</div>
           </div>
@@ -144,9 +145,10 @@ export function NetworkSettings() {
       <section className={cn(!settings.enabled && 'opacity-50 pointer-events-none')}>
         <div className="space-y-4">
           {/* Proxy Type */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-sm font-medium">{t('settings.proxy_type')}</div>
             <SegmentedControl
+              className="shrink-0"
               value={settings.type}
               onValueChange={handleTypeChange}
               options={proxyTypeOptions}
@@ -154,8 +156,8 @@ export function NetworkSettings() {
           </div>
 
           {/* Host and Port */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="sm:col-span-2">
               <label className="text-sm font-medium">{t('settings.proxy_host')}</label>
               <input
                 type="text"
@@ -190,7 +192,7 @@ export function NetworkSettings() {
             <div className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
               {t('settings.proxy_auth')}
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-sm font-medium">{t('settings.proxy_username')}</label>
                 <input
@@ -221,13 +223,13 @@ export function NetworkSettings() {
           </div>
 
           {/* Actions */}
-          <div className="flex items-center gap-3 pt-2">
+          <div className="flex flex-wrap items-center gap-2 pt-2">
             <button
               type="button"
               onClick={handleTest}
               disabled={isTesting || !canTest}
               className={cn(
-                'h-9 rounded-md px-4 text-sm font-medium transition-colors',
+                'h-9 rounded-md px-4 text-sm font-medium transition-colors shrink-0',
                 'border border-border bg-background hover:bg-accent',
                 'disabled:cursor-not-allowed disabled:opacity-50',
                 testStatus === 'success' && 'border-green-600 text-green-600',
@@ -241,7 +243,7 @@ export function NetworkSettings() {
               onClick={handleSave}
               disabled={isSaving}
               className={cn(
-                'h-9 rounded-md px-4 text-sm font-medium transition-colors',
+                'h-9 rounded-md px-4 text-sm font-medium transition-colors shrink-0',
                 'bg-primary text-primary-foreground hover:bg-primary/90',
                 'disabled:cursor-not-allowed disabled:opacity-50',
                 saveStatus === 'success' && 'bg-green-600 hover:bg-green-600',

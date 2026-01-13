@@ -64,12 +64,13 @@ export function GeneralSettings() {
     <div className="space-y-6">
       {/* Language Section */}
       <section>
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="min-w-0">
             <div className="text-sm font-medium">{t('language.label')}</div>
             <div className="text-xs text-muted-foreground">{t('language.description')}</div>
           </div>
           <SegmentedControl
+            className="shrink-0"
             value={(i18n.language as Language) || 'zh'}
             onValueChange={changeLanguage}
             options={languageOptions}
@@ -79,8 +80,8 @@ export function GeneralSettings() {
 
       {/* Auto Readability Section */}
       <section>
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="min-w-0">
             <div className="text-sm font-medium">{t('settings.auto_readability')}</div>
             <div className="text-xs text-muted-foreground">{t('settings.auto_readability_description')}</div>
           </div>
@@ -96,8 +97,8 @@ export function GeneralSettings() {
         <div className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
           {t('settings.advanced')}
         </div>
-        <div className="flex items-start justify-between gap-4">
-          <div>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="min-w-0">
             <div className="text-sm font-medium">{t('settings.fallback_ua')}</div>
             <div className="text-xs text-muted-foreground">{t('settings.fallback_ua_description')}</div>
           </div>
@@ -108,7 +109,7 @@ export function GeneralSettings() {
               onChange={(e) => setFallbackUA(e.target.value)}
               placeholder={t('settings.fallback_ua_placeholder')}
               className={cn(
-                'h-8 w-64 rounded-md border border-border bg-background px-2 text-sm',
+                'h-9 w-64 max-w-full rounded-md border border-border bg-background px-3 text-sm',
                 'placeholder:text-muted-foreground/50',
                 'focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary'
               )}
@@ -118,7 +119,7 @@ export function GeneralSettings() {
               onClick={handleSaveFallbackUA}
               disabled={isSaving}
               className={cn(
-                'h-8 rounded-md px-3 text-sm font-medium transition-colors',
+                'h-9 rounded-md px-3 text-sm font-medium transition-colors shrink-0',
                 'bg-primary text-primary-foreground hover:bg-primary/90',
                 'disabled:cursor-not-allowed disabled:opacity-50',
                 saveStatus === 'success' && 'bg-green-600 hover:bg-green-600',

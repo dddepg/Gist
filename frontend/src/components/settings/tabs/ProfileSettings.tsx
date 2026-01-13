@@ -123,8 +123,8 @@ export function ProfileSettings() {
 
       {/* Username Section (Read-only) */}
       <section>
-        <div className="flex items-start justify-between gap-4">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="min-w-0">
             <div className="text-sm font-medium">{t('profile.username')}</div>
             <div className="text-xs text-muted-foreground">{t('profile.username_readonly')}</div>
           </div>
@@ -133,7 +133,7 @@ export function ProfileSettings() {
             value={username}
             disabled
             className={cn(
-              'h-8 w-48 rounded-md border border-border bg-muted px-2 text-sm',
+              'h-9 w-48 max-w-full shrink-0 rounded-md border border-border bg-muted px-3 text-sm',
               'text-muted-foreground cursor-not-allowed'
             )}
           />
@@ -142,8 +142,8 @@ export function ProfileSettings() {
 
       {/* Nickname Section */}
       <section>
-        <div className="flex items-start justify-between gap-4">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="min-w-0">
             <div className="text-sm font-medium">{t('profile.nickname')}</div>
             <div className="text-xs text-muted-foreground">{t('profile.nickname_hint')}</div>
           </div>
@@ -153,7 +153,7 @@ export function ProfileSettings() {
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
               className={cn(
-                'h-8 w-48 rounded-md border border-border bg-background px-2 text-sm',
+                'h-9 w-48 max-w-full rounded-md border border-border bg-background px-3 text-sm',
                 'placeholder:text-muted-foreground/50',
                 'focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary'
               )}
@@ -163,7 +163,7 @@ export function ProfileSettings() {
               onClick={handleSaveNickname}
               disabled={isLoadingNickname || !nickname}
               className={cn(
-                'h-8 rounded-md px-3 text-sm font-medium transition-colors',
+                'h-9 rounded-md px-3 text-sm font-medium transition-colors shrink-0',
                 'bg-primary text-primary-foreground hover:bg-primary/90',
                 'disabled:cursor-not-allowed disabled:opacity-50',
                 nicknameStatus === 'success' && 'bg-green-600 hover:bg-green-600',
@@ -178,7 +178,7 @@ export function ProfileSettings() {
 
       {/* Email Section */}
       <section>
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="text-sm font-medium">{t('profile.email')}</div>
           <div className="flex shrink-0 gap-2">
             <input
@@ -186,7 +186,7 @@ export function ProfileSettings() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className={cn(
-                'h-8 w-48 rounded-md border border-border bg-background px-2 text-sm',
+                'h-9 w-48 max-w-full rounded-md border border-border bg-background px-3 text-sm',
                 'placeholder:text-muted-foreground/50',
                 'focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary'
               )}
@@ -196,7 +196,7 @@ export function ProfileSettings() {
               onClick={handleSaveEmail}
               disabled={isLoadingEmail || !email}
               className={cn(
-                'h-8 rounded-md px-3 text-sm font-medium transition-colors',
+                'h-9 rounded-md px-3 text-sm font-medium transition-colors shrink-0',
                 'bg-primary text-primary-foreground hover:bg-primary/90',
                 'disabled:cursor-not-allowed disabled:opacity-50',
                 emailStatus === 'success' && 'bg-green-600 hover:bg-green-600',
@@ -215,54 +215,54 @@ export function ProfileSettings() {
           {t('profile.change_password')}
         </div>
         <form onSubmit={handleChangePassword} className="space-y-3">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-sm font-medium">{t('profile.current_password')}</div>
             <input
               type="password"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
               className={cn(
-                'h-8 w-48 rounded-md border border-border bg-background px-2 text-sm',
+                'h-9 w-48 max-w-full shrink-0 rounded-md border border-border bg-background px-3 text-sm',
                 'placeholder:text-muted-foreground/50',
                 'focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary'
               )}
               autoComplete="current-password"
             />
           </div>
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-sm font-medium">{t('profile.new_password')}</div>
             <input
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               className={cn(
-                'h-8 w-48 rounded-md border border-border bg-background px-2 text-sm',
+                'h-9 w-48 max-w-full shrink-0 rounded-md border border-border bg-background px-3 text-sm',
                 'placeholder:text-muted-foreground/50',
                 'focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary'
               )}
               autoComplete="new-password"
             />
           </div>
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-sm font-medium">{t('profile.confirm_new_password')}</div>
             <input
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               className={cn(
-                'h-8 w-48 rounded-md border border-border bg-background px-2 text-sm',
+                'h-9 w-48 max-w-full shrink-0 rounded-md border border-border bg-background px-3 text-sm',
                 'placeholder:text-muted-foreground/50',
                 'focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary'
               )}
               autoComplete="new-password"
             />
           </div>
-          <div className="flex justify-end">
+          <div className="flex justify-end pt-1">
             <button
               type="submit"
               disabled={isLoadingPassword || !currentPassword || !newPassword || !confirmPassword}
               className={cn(
-                'h-8 rounded-md px-3 text-sm font-medium transition-colors',
+                'h-9 rounded-md px-3 text-sm font-medium transition-colors',
                 'bg-primary text-primary-foreground hover:bg-primary/90',
                 'disabled:cursor-not-allowed disabled:opacity-50',
                 passwordStatus === 'success' && 'bg-green-600 hover:bg-green-600',

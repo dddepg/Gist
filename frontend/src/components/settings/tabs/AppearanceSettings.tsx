@@ -62,12 +62,13 @@ export function AppearanceSettings() {
     <div className="space-y-6">
       {/* Theme Section */}
       <section>
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="min-w-0">
             <div className="text-sm font-medium">{t('theme.label')}</div>
             <div className="text-xs text-muted-foreground">{t('theme.description')}</div>
           </div>
           <SegmentedControl
+            className="shrink-0"
             value={theme}
             onValueChange={setTheme}
             options={themeOptions}

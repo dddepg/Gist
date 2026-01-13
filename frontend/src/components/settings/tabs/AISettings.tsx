@@ -158,18 +158,18 @@ export function AISettings() {
     )
   }
 
-  const selectClass = 'h-8 w-48 rounded-md border border-border bg-background px-2 text-sm focus:border-primary focus:outline-none'
-  const inputClass = 'h-8 w-48 rounded-md border border-border bg-background px-2 text-sm focus:border-primary focus:outline-none'
+  const selectClass = 'h-9 w-full sm:w-48 rounded-md border border-border bg-background px-3 text-sm focus:border-primary focus:outline-none'
+  const inputClass = 'h-9 w-full sm:w-48 rounded-md border border-border bg-background px-3 text-sm focus:border-primary focus:outline-none'
 
   return (
     <div className="space-y-1">
       {/* Provider */}
-      <div className="flex items-center justify-between py-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 py-2">
         <span className="text-sm font-medium">{t('ai_settings.provider')}</span>
         <select
           value={settings.provider}
           onChange={(e) => handleChange('provider', e.target.value)}
-          className={selectClass}
+          className={cn(selectClass, 'shrink-0')}
         >
           {PROVIDERS.map((p) => (
             <option key={p.value} value={p.value}>{p.label}</option>
@@ -178,7 +178,7 @@ export function AISettings() {
       </div>
 
       {/* API Key */}
-      <div className="flex items-center justify-between py-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 py-2">
         <span className="text-sm font-medium">{t('ai_settings.api_key')}</span>
         <input
           type="password"
@@ -189,13 +189,13 @@ export function AISettings() {
             settings.provider === 'anthropic' ? 'sk-ant-...' :
             t('ai_settings.enter_api_key')
           }
-          className={inputClass}
+          className={cn(inputClass, 'shrink-0')}
         />
       </div>
 
       {/* Base URL */}
-      <div className="flex items-center justify-between py-2">
-        <div className="flex items-center gap-1">
+      <div className="flex flex-wrap items-center justify-between gap-2 py-2">
+        <div className="flex items-center gap-1 min-w-0">
           <span className="text-sm font-medium">{t('ai_settings.base_url')}</span>
           {settings.provider === 'compatible' ? (
             <span className="text-xs text-destructive">{t('ai_settings.required')}</span>
@@ -211,12 +211,12 @@ export function AISettings() {
             settings.provider === 'compatible' ? 'https://openrouter.ai/api/v1' :
             t('ai_settings.leave_empty_for_default')
           }
-          className={inputClass}
+          className={cn(inputClass, 'shrink-0')}
         />
       </div>
 
       {/* Model */}
-      <div className="flex items-center justify-between py-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 py-2">
         <span className="text-sm font-medium">{t('ai_settings.model')}</span>
         <input
           type="text"
@@ -227,7 +227,7 @@ export function AISettings() {
             settings.provider === 'anthropic' ? 'claude-sonnet-4-20250514' :
             t('ai_settings.model_example', { example: 'anthropic/claude-3.5-sonnet' })
           }
-          className={inputClass}
+          className={cn(inputClass, 'shrink-0')}
         />
       </div>
 
@@ -237,8 +237,8 @@ export function AISettings() {
       </div>
 
       {/* Enable Reasoning */}
-      <div className="flex items-center justify-between py-2">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-2 py-2">
+        <div className="min-w-0">
           <span className="text-sm font-medium">
             {settings.provider === 'anthropic' ? t('ai_settings.extended_thinking') : t('ai_settings.enable_reasoning')}
           </span>
@@ -254,12 +254,12 @@ export function AISettings() {
 
       {/* OpenAI: Reasoning Effort */}
       {settings.thinking && settings.provider === 'openai' && (
-        <div className="flex items-center justify-between py-2 pl-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 py-2 pl-4">
           <span className="text-sm">{t('ai_settings.reasoning_effort_label')}</span>
           <select
             value={settings.reasoningEffort}
             onChange={(e) => handleChange('reasoningEffort', e.target.value)}
-            className={selectClass}
+            className={cn(selectClass, 'shrink-0')}
           >
             {OPENAI_EFFORT_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -270,8 +270,8 @@ export function AISettings() {
 
       {/* Anthropic: Thinking Budget */}
       {settings.thinking && settings.provider === 'anthropic' && (
-        <div className="flex items-center justify-between py-2 pl-4">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-2 py-2 pl-4">
+          <div className="min-w-0">
             <span className="text-sm">{t('ai_settings.thinking_budget_label')}</span>
             <p className="text-xs text-muted-foreground">{t('ai_settings.thinking_budget_hint')}</p>
           </div>
@@ -282,7 +282,7 @@ export function AISettings() {
             min={1024}
             max={128000}
             placeholder="10000"
-            className={cn(inputClass, 'w-24')}
+            className={cn(inputClass, 'w-24 shrink-0')}
           />
         </div>
       )}
@@ -291,15 +291,15 @@ export function AISettings() {
       {settings.thinking && settings.provider === 'compatible' && (
         <div className="space-y-2 pl-4">
           {/* Effort option */}
-          <div className="flex items-center justify-between py-1">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 py-1">
+            <div className="flex items-center gap-2 min-w-0">
               <input
                 type="radio"
                 id="compatible-effort"
                 name="compatible-mode"
                 checked={settings.reasoningEffort !== ''}
                 onChange={() => handleMultiChange({ reasoningEffort: 'medium', thinkingBudget: 0 })}
-                className="size-4"
+                className="size-4 shrink-0"
               />
               <label htmlFor="compatible-effort" className="text-sm">
                 {t('ai_settings.reasoning_effort_mode')}
@@ -310,7 +310,7 @@ export function AISettings() {
               <select
                 value={settings.reasoningEffort}
                 onChange={(e) => handleChange('reasoningEffort', e.target.value)}
-                className={cn(selectClass, 'w-32')}
+                className={cn(selectClass, 'w-32 shrink-0')}
               >
                 {COMPATIBLE_EFFORT_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -320,15 +320,15 @@ export function AISettings() {
           </div>
 
           {/* Budget option */}
-          <div className="flex items-center justify-between py-1">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 py-1">
+            <div className="flex items-center gap-2 min-w-0">
               <input
                 type="radio"
                 id="compatible-budget"
                 name="compatible-mode"
                 checked={settings.reasoningEffort === '' && settings.thinkingBudget > 0}
                 onChange={() => handleMultiChange({ reasoningEffort: '', thinkingBudget: 10000 })}
-                className="size-4"
+                className="size-4 shrink-0"
               />
               <label htmlFor="compatible-budget" className="text-sm">
                 {t('ai_settings.thinking_budget_mode')}
@@ -343,7 +343,7 @@ export function AISettings() {
                 min={1024}
                 max={128000}
                 placeholder="10000"
-                className={cn(inputClass, 'w-24')}
+                className={cn(inputClass, 'w-24 shrink-0')}
               />
             )}
           </div>
@@ -356,15 +356,15 @@ export function AISettings() {
       </div>
 
       {/* Summary Language */}
-      <div className="flex items-center justify-between py-2">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-2 py-2">
+        <div className="min-w-0">
           <span className="text-sm font-medium">{t('ai_settings.summary_language')}</span>
           <p className="text-xs text-muted-foreground">{t('ai_settings.summary_language_hint')}</p>
         </div>
         <select
           value={settings.summaryLanguage}
           onChange={(e) => handleChange('summaryLanguage', e.target.value)}
-          className={selectClass}
+          className={cn(selectClass, 'w-40 shrink-0')}
         >
           {SUMMARY_LANGUAGE_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -373,32 +373,34 @@ export function AISettings() {
       </div>
 
       {/* Auto Translate */}
-      <div className="flex items-center justify-between py-2">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-2 py-2">
+        <div className="min-w-0">
           <span className="text-sm font-medium">{t('ai_settings.auto_translate')}</span>
           <p className="text-xs text-muted-foreground">{t('ai_settings.auto_translate_hint')}</p>
         </div>
         <Switch
           checked={settings.autoTranslate}
           onCheckedChange={(checked) => handleChange('autoTranslate', checked)}
+          className="shrink-0"
         />
       </div>
 
       {/* Auto Summary */}
-      <div className="flex items-center justify-between py-2">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-2 py-2">
+        <div className="min-w-0">
           <span className="text-sm font-medium">{t('ai_settings.auto_summary')}</span>
           <p className="text-xs text-muted-foreground">{t('ai_settings.auto_summary_hint')}</p>
         </div>
         <Switch
           checked={settings.autoSummary}
           onCheckedChange={(checked) => handleChange('autoSummary', checked)}
+          className="shrink-0"
         />
       </div>
 
       {/* Rate Limit */}
-      <div className="flex items-center justify-between py-2">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-2 py-2">
+        <div className="min-w-0">
           <span className="text-sm font-medium">{t('ai_settings.rate_limit_label')}</span>
           <p className="text-xs text-muted-foreground">{t('ai_settings.rate_limit_hint')}</p>
         </div>
@@ -408,18 +410,18 @@ export function AISettings() {
           onChange={(e) => handleChange('rateLimit', parseInt(e.target.value) || 10)}
           min={1}
           max={100}
-          className={cn(inputClass, 'w-20')}
+          className={cn(inputClass, 'w-20 shrink-0')}
         />
       </div>
 
       {/* Test & Save Buttons */}
-      <div className="flex items-center gap-3 pt-4">
+      <div className="flex flex-wrap items-center gap-3 pt-4">
         <button
           type="button"
           onClick={handleTest}
           disabled={isTesting || !settings.apiKey || !settings.model || (settings.provider === 'compatible' && !settings.baseUrl)}
           className={cn(
-            'flex h-8 items-center gap-1.5 rounded-md px-4 text-sm font-medium transition-colors',
+            'flex h-8 shrink-0 items-center gap-1.5 rounded-md px-4 text-sm font-medium transition-colors',
             'bg-muted hover:bg-muted/80',
             'disabled:cursor-not-allowed disabled:opacity-50'
           )}
@@ -444,7 +446,7 @@ export function AISettings() {
           onClick={handleSave}
           disabled={isSaving}
           className={cn(
-            'flex h-8 items-center gap-1.5 rounded-md px-4 text-sm font-medium transition-colors',
+            'flex h-8 shrink-0 items-center gap-1.5 rounded-md px-4 text-sm font-medium transition-colors',
             'bg-primary text-primary-foreground hover:bg-primary/90',
             'disabled:cursor-not-allowed disabled:opacity-50'
           )}
