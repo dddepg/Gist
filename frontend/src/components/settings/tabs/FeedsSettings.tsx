@@ -184,8 +184,8 @@ export function FeedsSettings() {
           <p className="text-sm text-muted-foreground">{t('feeds.no_feeds')}</p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-border">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto rounded-lg border border-border">
+          <table className="w-full min-w-[600px] text-sm">
             <thead className="bg-muted/50">
               <tr>
                 <th className="w-10 px-3 py-2 text-left">
@@ -223,7 +223,7 @@ export function FeedsSettings() {
                     {renderSortIcon('title')}
                   </button>
                 </th>
-                <th className="w-28 px-3 py-2 text-left font-medium text-muted-foreground">
+                <th className="hidden sm:table-cell w-28 px-3 py-2 text-left font-medium text-muted-foreground">
                   <button
                     type="button"
                     onClick={() => handleSort('createdAt')}
@@ -233,7 +233,7 @@ export function FeedsSettings() {
                     {renderSortIcon('createdAt')}
                   </button>
                 </th>
-                <th className="w-36 px-3 py-2 text-left font-medium text-muted-foreground">
+                <th className="hidden sm:table-cell w-36 px-3 py-2 text-left font-medium text-muted-foreground">
                   <button
                     type="button"
                     onClick={() => handleSort('updatedAt')}
@@ -317,10 +317,10 @@ export function FeedsSettings() {
                         </span>
                       </div>
                     </td>
-                    <td className="px-3 py-2 text-muted-foreground">
+                    <td className="hidden sm:table-cell px-3 py-2 text-muted-foreground">
                       {formatDate(feed.createdAt)}
                     </td>
-                    <td className="px-3 py-2 text-muted-foreground">
+                    <td className="hidden sm:table-cell px-3 py-2 text-muted-foreground">
                       {formatDateTime(feed.updatedAt)}
                     </td>
                     <td className="px-3 py-2">

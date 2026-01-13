@@ -122,12 +122,35 @@ export function SettingsModal({ open, onOpenChange, initialTab }: SettingsModalP
         <DialogContent className="!inset-0 !translate-x-0 !translate-y-0 w-screen h-screen max-w-none max-h-none p-0 overflow-hidden gap-0 rounded-none">
           <div className="flex h-full flex-col safe-area-inset">
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
-              <DialogTitle className="text-lg font-bold">{getTitle()}</DialogTitle>
+            <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border shrink-0">
+              <div className="relative flex-1">
+                <select
+                  value={activeTab}
+                  onChange={(e) => setActiveTab(e.target.value as SettingsTab)}
+                  className={cn(
+                    'w-full h-9 appearance-none rounded-md border border-border bg-background pl-3 pr-8 text-base font-medium',
+                    'focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary'
+                  )}
+                >
+                  {tabs.map((tab) => (
+                    <option key={tab.id} value={tab.id}>
+                      {tab.label}
+                    </option>
+                  ))}
+                </select>
+                <svg
+                  className="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
               <button
                 onClick={() => onOpenChange(false)}
                 className={cn(
-                  'rounded-md p-1.5',
+                  'rounded-md p-1.5 shrink-0',
                   'text-muted-foreground hover:text-foreground hover:bg-accent',
                   'transition-colors focus:outline-none'
                 )}
@@ -137,26 +160,6 @@ export function SettingsModal({ open, onOpenChange, initialTab }: SettingsModalP
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
-            </div>
-
-            {/* Tab bar */}
-            <div className="flex border-b border-border overflow-x-auto shrink-0 bg-muted/30">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id)}
-                  className={cn(
-                    'px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors',
-                    'border-b-2 -mb-px',
-                    activeTab === tab.id
-                      ? 'border-primary text-primary'
-                      : 'border-transparent text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  {tab.label}
-                </button>
-              ))}
             </div>
 
             {/* Content */}

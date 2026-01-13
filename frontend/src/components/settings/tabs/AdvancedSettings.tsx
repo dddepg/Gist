@@ -122,18 +122,18 @@ export function AdvancedSettings() {
 
         <div className="space-y-2">
           {/* Add Row */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <input
               type="text"
               value={newHost}
               onChange={(e) => setNewHost(e.target.value)}
               placeholder="example.com"
               className={cn(
-                'h-9 flex-1 rounded-md border border-border bg-background px-3 text-sm min-w-0',
+                'h-9 min-w-[120px] flex-1 rounded-md border border-border bg-background px-3 text-sm',
                 'focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary'
               )}
             />
-            <div className="relative w-20 flex-shrink-0">
+            <div className="flex shrink-0 items-center gap-2">
               <input
                 type="number"
                 min="0"
@@ -141,22 +141,22 @@ export function AdvancedSettings() {
                 onChange={(e) => setNewInterval(e.target.value)}
                 placeholder={t('settings.advanced_seconds')}
                 className={cn(
-                  'h-9 w-full rounded-md border border-border bg-background px-3 text-sm',
+                  'h-9 w-20 rounded-md border border-border bg-background px-3 text-sm',
                   'focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary'
                 )}
               />
+              <button
+                type="button"
+                onClick={handleCreate}
+                disabled={!newHost.trim() || !isValidHostFormat(newHost)}
+                className={cn(
+                  'flex size-9 items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground transition-colors hover:bg-secondary/80',
+                  'disabled:opacity-50 disabled:cursor-not-allowed'
+                )}
+              >
+                <Plus className="size-4" />
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={handleCreate}
-              disabled={!newHost.trim() || !isValidHostFormat(newHost)}
-              className={cn(
-                'flex size-9 flex-shrink-0 items-center justify-center rounded-md border border-border bg-secondary text-secondary-foreground transition-colors hover:bg-secondary/80',
-                'disabled:opacity-50 disabled:cursor-not-allowed'
-              )}
-            >
-              <Plus className="size-4" />
-            </button>
           </div>
 
           {/* List */}
@@ -171,14 +171,14 @@ export function AdvancedSettings() {
                 return (
                   <div
                     key={item.id}
-                    className="flex items-center gap-2 rounded-md border border-border bg-card p-2 min-w-0"
+                    className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-card p-2"
                   >
-                    <div className="flex-1 px-2 text-sm font-mono truncate min-w-0" title={item.host}>
+                    <div className="min-w-[120px] flex-1 px-2 text-sm font-mono truncate" title={item.host}>
                       {item.host}
                     </div>
 
                     {isEditing ? (
-                      <div className="flex items-center gap-1 flex-shrink-0">
+                      <div className="flex shrink-0 items-center gap-1">
                         <input
                           type="number"
                           min="0"
@@ -186,41 +186,41 @@ export function AdvancedSettings() {
                           autoFocus
                           onChange={(e) => setEditInterval(Math.max(0, parseInt(e.target.value) || 0))}
                           className={cn(
-                            'h-8 w-20 rounded-md border border-border bg-background px-2 text-sm',
+                            'h-9 w-20 rounded-md border border-border bg-background px-3 text-sm',
                             'focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary'
                           )}
                         />
                         <button
                           type="button"
                           onClick={handleUpdate}
-                          className="flex size-8 items-center justify-center rounded-md text-primary hover:bg-primary/10"
+                          className="flex size-9 items-center justify-center rounded-md text-primary hover:bg-primary/10"
                         >
                           <Check className="size-4" />
                         </button>
                         <button
                           type="button"
                           onClick={cancelEdit}
-                          className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
+                          className="flex size-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
                         >
                           <X className="size-4" />
                         </button>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-1 flex-shrink-0">
+                      <div className="flex shrink-0 items-center gap-1">
                         <div className="w-20 text-center text-xs text-muted-foreground">
                           {item.intervalSeconds}s
                         </div>
                         <button
                           type="button"
                           onClick={() => startEdit(item)}
-                          className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                          className="flex size-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
                         >
                           <Edit2 className="size-4" />
                         </button>
                         <button
                           type="button"
                           onClick={() => handleDelete(item.host)}
-                          className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                          className="flex size-9 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                         >
                           <Trash2 className="size-4" />
                         </button>

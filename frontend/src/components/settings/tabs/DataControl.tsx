@@ -200,8 +200,8 @@ export function DataControl() {
         <h3 className="mb-4 text-sm font-semibold text-muted-foreground">{t('data_control.import_data')}</h3>
 
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="min-w-0">
               <div className="text-sm font-medium">{t('data_control.import_feeds')}</div>
               <div className="text-xs text-muted-foreground">{t('data_control.import_description')}</div>
             </div>
@@ -219,7 +219,7 @@ export function DataControl() {
               onClick={handleImportClick}
               disabled={isImporting}
               className={cn(
-                'inline-flex h-8 items-center gap-2 rounded-lg border border-border bg-background px-4 text-sm font-medium',
+                'inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 text-sm font-medium',
                 'transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50'
               )}
             >
@@ -324,32 +324,30 @@ export function DataControl() {
       <section>
         <h3 className="mb-4 text-sm font-semibold text-muted-foreground">{t('data_control.export_data')}</h3>
 
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm font-medium">{t('data_control.export_feeds')}</div>
-              <div className="text-xs text-muted-foreground">{t('data_control.export_description')}</div>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleExport}
-              className={cn(
-                'inline-flex h-8 items-center gap-2 rounded-lg border border-border bg-background px-4 text-sm font-medium',
-                'transition-colors hover:bg-accent'
-              )}
-            >
-              <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                />
-              </svg>
-              <span>{t('data_control.export')}</span>
-            </button>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="min-w-0">
+            <div className="text-sm font-medium">{t('data_control.export_feeds')}</div>
+            <div className="text-xs text-muted-foreground">{t('data_control.export_description')}</div>
           </div>
+
+          <button
+            type="button"
+            onClick={handleExport}
+            className={cn(
+              'inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 text-sm font-medium',
+              'transition-colors hover:bg-accent'
+            )}
+          >
+            <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+              />
+            </svg>
+            <span>{t('data_control.export')}</span>
+          </button>
         </div>
       </section>
 
@@ -434,8 +432,8 @@ interface ClearCacheItemProps {
 function ClearCacheItem({ title, description, isClearing, onClear, result, error, t }: ClearCacheItemProps) {
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
           <div className="text-sm font-medium">{title}</div>
           <div className="text-xs text-muted-foreground">{description}</div>
         </div>
@@ -445,7 +443,7 @@ function ClearCacheItem({ title, description, isClearing, onClear, result, error
           onClick={onClear}
           disabled={isClearing}
           className={cn(
-            'inline-flex h-8 items-center gap-2 rounded-lg border px-4 text-sm font-medium',
+            'inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-lg border px-4 text-sm font-medium',
             'transition-colors disabled:cursor-not-allowed disabled:opacity-50',
             'border-red-300 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-800 dark:bg-red-950 dark:text-red-400 dark:hover:bg-red-900'
           )}
