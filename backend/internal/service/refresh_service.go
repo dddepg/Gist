@@ -108,6 +108,7 @@ func (h *hostRateLimiter) recordRequest(host string) {
 // It clears error messages, updates ETag/LastModified, saves entries, and fetches icons.
 func (s *refreshService) processParsedFeed(ctx context.Context, feed model.Feed, parsed *gofeed.Feed, resp *http.Response) error {
 	// Clear error message on successful refresh
+	feed.ErrorMessage = nil
 	_ = s.feeds.UpdateErrorMessage(ctx, feed.ID, nil)
 
 	// Update feed ETag and LastModified (only update non-empty values)
