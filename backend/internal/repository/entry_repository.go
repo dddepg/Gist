@@ -281,7 +281,7 @@ func (r *entryRepository) CreateOrUpdate(ctx context.Context, entry model.Entry)
 		   content = excluded.content,
 		   thumbnail_url = excluded.thumbnail_url,
 		   author = excluded.author,
-		   published_at = excluded.published_at,
+		   published_at = COALESCE(entries.published_at, excluded.published_at),
 		   updated_at = excluded.updated_at`,
 		id,
 		entry.FeedID,
