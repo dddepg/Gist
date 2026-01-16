@@ -645,6 +645,13 @@ func (s *iconService) ClearAllIcons(ctx context.Context) (int64, error) {
 		return deletedFiles, fmt.Errorf("clear icon paths in db: %w", err)
 	}
 
+	// 3. Clear ETag and Last-Modified to force full refresh on next update
+	// This ensures icons will be re-fetched even if feed returns 304 Not Modified
+	_, err = s.feeds.ClearAllConditionalGet(ctx)
+	if err != nil {
+		return deletedFiles, fmt.Errorf("clear conditional get: %w", err)
+	}
+
 	return deletedFiles, nil
 }
 
