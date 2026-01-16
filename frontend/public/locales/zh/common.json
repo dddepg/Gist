@@ -142,6 +142,7 @@
     "no_content": "暂无内容",
     "loading": "加载中...",
     "untitled": "无标题",
+    "unknown_feed": "未知订阅",
     "unread_count": "{{count}} 条未读",
     "show_all": "显示全部",
     "show_unread_only": "只显示未读",
@@ -270,8 +271,10 @@
   },
   "user": {
     "profile": "个人资料",
-    "logout": "退出登录"
+    "logout": "退出登录",
+    "guest": "访客"
   },
+
   "auth": {
     "login": "登录",
     "register": "注册",

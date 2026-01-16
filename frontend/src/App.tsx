@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
 import { Router, useLocation, Redirect } from 'wouter'
+import { useTranslation } from 'react-i18next'
 import { ThreeColumnLayout } from '@/components/layout/three-column-layout'
 import { Sheet } from '@/components/ui/sheet'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -18,11 +19,12 @@ import { cn } from '@/lib/utils'
 import type { ContentType } from '@/types/api'
 
 function LoadingScreen() {
+  const { t } = useTranslation()
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-4">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-        <p className="text-sm text-muted-foreground">Loading...</p>
+        <p className="text-sm text-muted-foreground">{t('entry.loading')}</p>
       </div>
     </div>
   )

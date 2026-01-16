@@ -301,7 +301,7 @@ export function Lightbox() {
                 ) : (
                   <FeedIcon className="size-4 shrink-0" />
                 )}
-                <span>{feed?.title || 'Unknown'}</span>
+                <span>{feed?.title || t('entry.unknown_feed')}</span>
                 {publishedAt && (
                   <>
                     <span>·</span>
