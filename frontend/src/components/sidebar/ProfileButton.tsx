@@ -42,29 +42,30 @@ const UserAvatar = React.forwardRef<
     onTransitionEnd?: () => void
     hideName?: boolean
   }
->(({ className, avatarUrl, style, onTransitionEnd }, ref) => (
-  <span
-    ref={ref}
-    style={style}
-    onTransitionEnd={onTransitionEnd}
-    className={cn(
-      'relative flex shrink-0 overflow-hidden rounded-full border bg-muted select-none',
-      className
-    )}
-  >
-    {avatarUrl ? (
-      <img className="size-full object-cover" src={avatarUrl} alt="User avatar" />
-    ) : (
-      <svg
-        className="size-full p-1 text-muted-foreground"
-        fill="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-      </svg>
-    )}
-  </span>
-))
+  >(({ className, avatarUrl, style, onTransitionEnd }, ref) => (
+   <span
+     ref={ref}
+     style={style}
+     onTransitionEnd={onTransitionEnd}
+     className={cn(
+       'relative flex shrink-0 overflow-hidden rounded-full border bg-muted select-none',
+       className
+     )}
+   >
+     {avatarUrl ? (
+       <img className="size-full object-cover" src={avatarUrl} alt="" />
+     ) : (
+       <svg
+         className="size-full p-1 text-muted-foreground"
+         fill="currentColor"
+         viewBox="0 0 24 24"
+       >
+         <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4 1.79-4 4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+       </svg>
+     )}
+   </span>
+ ))
+
 UserAvatar.displayName = 'UserAvatar'
 
 const TransitionAvatar = React.forwardRef<
@@ -130,14 +131,14 @@ const TransitionAvatar = React.forwardRef<
               className="fixed p-0 border-0 pointer-events-none rounded-full overflow-hidden bg-muted z-[100] transform-gpu shadow-xl select-none"
             >
               {avatarUrl ? (
-                <img className="size-full object-cover" src={avatarUrl} alt="User avatar" />
+                <img className="size-full object-cover" src={avatarUrl} alt="" />
               ) : (
                 <svg
                   className="size-full p-1 text-muted-foreground"
                   fill="currentColor"
                   viewBox="0 0 24 24"
                 >
-                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4 1.79-4 4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
                 </svg>
               )}
             </motion.div>
@@ -151,7 +152,7 @@ TransitionAvatar.displayName = 'TransitionAvatar'
 
 export function ProfileButton({
   avatarUrl,
-  userName = 'User',
+  userName,
   starredCount = 0,
   isStarredSelected = false,
   onStarredClick,
@@ -160,6 +161,7 @@ export function ProfileButton({
   onLogoutClick,
 }: ProfileButtonProps) {
   const { t } = useTranslation()
+  const displayName = userName || t('user.guest')
   const [isOpen, setIsOpen] = React.useState(false)
   const iconStyles =
     'size-4 text-muted-foreground transition-colors group-data-[highlighted]:text-foreground'
@@ -206,7 +208,7 @@ export function ProfileButton({
         <DropdownMenuLabel className="px-2 pb-3 pt-6 relative z-10 text-center">
             <div className="flex flex-col items-center justify-center">
               <div className="max-w-[20ch] truncate text-lg font-semibold tracking-tight text-foreground">
-                {userName}
+                {displayName}
               </div>
             </div>
         </DropdownMenuLabel>

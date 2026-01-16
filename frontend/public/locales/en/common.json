@@ -142,6 +142,7 @@
     "no_content": "No content available",
     "loading": "Loading...",
     "untitled": "Untitled",
+    "unknown_feed": "Unknown Feed",
     "unread_count_one": "{{count}} unread",
     "unread_count_other": "{{count}} unread",
     "show_all": "Show all",
@@ -271,7 +272,8 @@
   },
   "user": {
     "profile": "Profile",
-    "logout": "Logout"
+    "logout": "Logout",
+    "guest": "Guest"
   },
   "auth": {
     "login": "Login",

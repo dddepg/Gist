@@ -32,10 +32,13 @@ export const EntryListItem = forwardRef<HTMLDivElement, EntryListItemProps>(
     },
     ref
   ) {
-    const { t } = useTranslation()
-    const publishedAt = entry.publishedAt ? formatRelativeTime(entry.publishedAt, t) : null
-    const [iconError, setIconError] = useState(false)
-    const showIcon = feed?.iconPath && !iconError
+  const { t } = useTranslation()
+  const publishedAt = entry.publishedAt ? formatRelativeTime(entry.publishedAt, t) : null
+  const [iconError, setIconError] = useState(false)
+  const showIcon = feed?.iconPath && !iconError
+  const fallbackTitle = t('entry.untitled')
+  const fallbackFeedName = t('entry.unknown_feed')
+
 
     // Get translation from store
     const translation = useTranslationStore((state) =>
@@ -79,7 +82,7 @@ export const EntryListItem = forwardRef<HTMLDivElement, EntryListItemProps>(
           ) : (
             <FeedIcon className="size-4 shrink-0 text-muted-foreground/50" />
           )}
-          <span className="truncate">{feed?.title || 'Unknown Feed'}</span>
+          <span className="truncate">{feed?.title || fallbackFeedName}</span>
           {publishedAt && (
             <>
               <span className="text-muted-foreground/50">·</span>
@@ -95,7 +98,7 @@ export const EntryListItem = forwardRef<HTMLDivElement, EntryListItemProps>(
             !entry.read ? 'font-semibold' : 'font-medium text-muted-foreground'
           )}
         >
-          {displayTitle || 'Untitled'}
+          {displayTitle || fallbackTitle}
         </div>
 
         {/* Line 3: summary */}

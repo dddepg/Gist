@@ -1,5 +1,6 @@
 import type { RefCallback } from 'react'
 import { useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useCodeHighlight } from '@/hooks/useCodeHighlight'
 import { useEntryMeta } from '@/hooks/useEntryMeta'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -33,8 +34,9 @@ export function EntryContentBody({
   isLoadingSummary,
   summaryError,
 }: EntryContentBodyProps) {
+  const { t } = useTranslation()
   const { publishedLong, readingTime } = useEntryMeta(entry)
-  const title = displayTitle ?? entry.title ?? 'Untitled'
+  const title = displayTitle ?? entry.title ?? t('entry.untitled')
   const contentRef = useRef<HTMLDivElement>(null)
 
   // Apply code highlighting after content renders
@@ -107,7 +109,7 @@ export function EntryContentBody({
             )
           ) : (
             <div className="rounded-lg border border-dashed border-border p-8 text-center text-muted-foreground">
-              No content available for this article.
+              {t('entry.no_content')}
             </div>
           )}
         </div>

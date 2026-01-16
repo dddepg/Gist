@@ -128,7 +128,7 @@ export const PictureItem = memo(function PictureItem({
           ) : (
             <FeedIcon className="mr-1.5 size-4 shrink-0 text-muted-foreground/50" />
           )}
-          <span className="truncate">{feed?.title || 'Unknown'}</span>
+          <span className="truncate">{feed?.title || t('entry.unknown_feed')}</span>
           {publishedAt && (
             <>
               <span className="mx-1.5 text-muted-foreground/50">·</span>

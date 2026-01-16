@@ -32,7 +32,7 @@ function GistLogo({ className }: { className?: string }) {
 export function SidebarHeader({
   title = 'Gist',
   avatarUrl,
-  userName = 'User',
+  userName,
   starredCount,
   isStarredSelected,
   onAddClick,
@@ -42,6 +42,7 @@ export function SidebarHeader({
   onLogoutClick,
 }: SidebarHeaderProps) {
   const { t } = useTranslation()
+  const displayName = userName || t('user.guest')
 
   return (
     <div className="flex items-center justify-between px-3 pt-2.5 pb-2">
@@ -66,7 +67,7 @@ export function SidebarHeader({
         {/* User avatar dropdown */}
         <ProfileButton
           avatarUrl={avatarUrl}
-          userName={userName}
+          userName={displayName}
           starredCount={starredCount}
           isStarredSelected={isStarredSelected}
           onStarredClick={onStarredClick}
