@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { useAddFeed } from '@/hooks/useAddFeed'
 import { useFolders } from '@/hooks/useFolders'
+import { BackIcon } from '@/components/ui/icons'
 import { FeedUrlForm } from './FeedUrlForm'
 import { FeedPreviewCard } from './FeedPreviewCard'
 import type { ContentType } from '@/types/api'
@@ -50,9 +51,7 @@ export function AddFeedPage({ onClose, onFeedAdded, contentType = 'article' }: A
           'transition-colors duration-200'
         )}
       >
-        <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-        </svg>
+        <BackIcon className="size-4" />
         <span>{t('add_feed.back')}</span>
       </button>
 

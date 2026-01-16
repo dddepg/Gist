@@ -69,7 +69,7 @@ export function FeedPreviewCard({ feed, folders, onSubscribe, isLoading = false 
   const displayTitle = customTitle || feed.title
 
   return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden">
+    <div className="rounded-xl border border-border bg-card shadow-sm">
       {/* Feed Header */}
       <div className="flex items-start gap-4 p-4">
         {/* Feed Icon */}
@@ -131,7 +131,7 @@ export function FeedPreviewCard({ feed, folders, onSubscribe, isLoading = false 
 
       {/* Options Section */}
       {showOptions && (
-        <div className="border-t border-border bg-accent/30 px-4 py-3 space-y-3">
+        <div className="border-t border-border bg-accent/30 px-4 py-4 space-y-4">
           {/* Custom Title */}
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1.5">
