@@ -37,14 +37,26 @@ function useResizable({
     setPosition(initial)
   }, [initial])
 
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
+  // Extract position from mouse/pointer/touch events
+  const getEventPosition = useCallback(
+    (e: MouseEvent | PointerEvent | TouchEvent) => {
+      if ('touches' in e && e.touches.length > 0) {
+        return axis === 'x' ? e.touches[0]!.clientX : e.touches[0]!.clientY
+      }
+      return axis === 'x' ? (e as MouseEvent).clientX : (e as MouseEvent).clientY
+    },
+    [axis]
+  )
+
+  const handleDragStart = useCallback(
+    (e: React.PointerEvent | React.TouchEvent) => {
       e.preventDefault()
       setIsDragging(true)
-      startPosRef.current = axis === 'x' ? e.clientX : e.clientY
+      const pos = getEventPosition(e.nativeEvent as PointerEvent | TouchEvent)
+      startPosRef.current = pos
       startValueRef.current = position
     },
-    [axis, position]
+    [position, getEventPosition]
   )
 
   const handleDoubleClick = useCallback(() => {
@@ -54,38 +66,55 @@ function useResizable({
   useEffect(() => {
     if (!isDragging) return
 
-    const handleMouseMove = (e: MouseEvent) => {
-      const currentPos = axis === 'x' ? e.clientX : e.clientY
+    const handleMove = (e: MouseEvent | PointerEvent | TouchEvent) => {
+      const currentPos = getEventPosition(e)
       const delta = currentPos - startPosRef.current
       const newValue = Math.min(max, Math.max(min, startValueRef.current + delta))
       setPosition(newValue)
     }
 
-    const handleMouseUp = () => {
+    const handleEnd = () => {
       setIsDragging(false)
       onResizeEnd?.(position)
     }
 
-    document.addEventListener('mousemove', handleMouseMove)
-    document.addEventListener('mouseup', handleMouseUp)
+    const handleTouchMove = (e: TouchEvent) => {
+      e.preventDefault()
+      handleMove(e)
+    }
+
+    // Pointer events (primary, works on most modern devices)
+    document.addEventListener('pointermove', handleMove)
+    document.addEventListener('pointerup', handleEnd)
+    document.addEventListener('pointercancel', handleEnd)
+
+    // Touch events (fallback for older devices)
+    document.addEventListener('touchmove', handleTouchMove, { passive: false })
+    document.addEventListener('touchend', handleEnd)
+    document.addEventListener('touchcancel', handleEnd)
 
     // Change cursor during drag
     document.body.style.cursor = 'ew-resize'
     document.body.style.userSelect = 'none'
 
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
+      document.removeEventListener('pointermove', handleMove)
+      document.removeEventListener('pointerup', handleEnd)
+      document.removeEventListener('pointercancel', handleEnd)
+      document.removeEventListener('touchmove', handleTouchMove)
+      document.removeEventListener('touchend', handleEnd)
+      document.removeEventListener('touchcancel', handleEnd)
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
     }
-  }, [isDragging, axis, min, max, onResizeEnd, position])
+  }, [isDragging, min, max, onResizeEnd, position, getEventPosition])
 
   return {
     position,
     isDragging,
     separatorProps: {
-      onMouseDown: handleMouseDown,
+      onPointerDown: handleDragStart,
+      onTouchStart: handleDragStart,
       onDoubleClick: handleDoubleClick,
     },
     setPosition,
@@ -193,7 +222,8 @@ export function ThreeColumnLayout({
       {/* First splitter */}
       <PanelSplitter
         isDragging={feedColResizable.isDragging}
-        onMouseDown={feedColResizable.separatorProps.onMouseDown}
+        onPointerDown={feedColResizable.separatorProps.onPointerDown}
+        onTouchStart={feedColResizable.separatorProps.onTouchStart}
         onDoubleClick={handleFeedColDoubleClick}
       />
 
@@ -213,7 +243,8 @@ export function ThreeColumnLayout({
           {/* Second splitter */}
           <PanelSplitter
             isDragging={entryColResizable.isDragging}
-            onMouseDown={entryColResizable.separatorProps.onMouseDown}
+            onPointerDown={entryColResizable.separatorProps.onPointerDown}
+            onTouchStart={entryColResizable.separatorProps.onTouchStart}
             onDoubleClick={handleEntryColDoubleClick}
           />
         </>

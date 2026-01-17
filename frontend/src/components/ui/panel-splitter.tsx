@@ -2,7 +2,8 @@ import { cn } from '@/lib/utils'
 
 interface PanelSplitterProps {
   isDragging?: boolean
-  onMouseDown?: (e: React.MouseEvent) => void
+  onPointerDown?: (e: React.PointerEvent) => void
+  onTouchStart?: (e: React.TouchEvent) => void
   onDoubleClick?: () => void
   className?: string
   tooltip?: string
@@ -10,7 +11,8 @@ interface PanelSplitterProps {
 
 export function PanelSplitter({
   isDragging,
-  onMouseDown,
+  onPointerDown,
+  onTouchStart,
   onDoubleClick,
   className,
   tooltip,
@@ -20,9 +22,11 @@ export function PanelSplitter({
       <div
         className={cn(
           'absolute inset-y-0 -left-1 w-2 cursor-ew-resize flex items-center justify-center transition-colors duration-200 group',
+          'touch-none select-none',
           isDragging && 'bg-accent/30'
         )}
-        onMouseDown={onMouseDown}
+        onPointerDown={onPointerDown}
+        onTouchStart={onTouchStart}
         onDoubleClick={onDoubleClick}
         title={tooltip}
       >
