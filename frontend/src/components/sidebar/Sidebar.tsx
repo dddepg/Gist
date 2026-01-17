@@ -254,7 +254,7 @@ export function Sidebar({
               opacity: { duration: 0.2 },
             }}
             style={{ willChange: 'transform, opacity' }}
-            className="absolute inset-0 overflow-y-auto px-1 py-2 space-y-1"
+            className="absolute inset-0 overflow-y-auto px-1 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] space-y-1"
           >
             {/* Feed categories header with sort */}
             <div className="flex items-center justify-between px-2.5">

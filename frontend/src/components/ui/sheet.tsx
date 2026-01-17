@@ -72,7 +72,7 @@ export function Sheet({ open, onOpenChange, children }: SheetProps) {
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className={cn(
               'fixed inset-y-0 left-0 z-50 bg-sidebar shadow-xl',
-              'w-[280px] safe-area-inset',
+              'w-[280px] safe-area-top',
               'touch-none'
             )}
           >
