@@ -8,6 +8,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"gist/backend/internal/logger"
 	"gist/backend/internal/model"
 	"gist/backend/internal/repository"
 	"gist/backend/internal/service/ai"
@@ -108,11 +109,13 @@ func (s *aiService) Summarize(ctx context.Context, entryID int64, content, title
 	// Create provider
 	provider, err := ai.NewProvider(cfg)
 	if err != nil {
+		logger.Warn("ai provider create failed", "module", "service", "action", "fetch", "resource", "ai", "result", "failed", "provider", cfg.Provider, "model", cfg.Model, "error", err)
 		return nil, nil, fmt.Errorf("create provider: %w", err)
 	}
 
 	// Wait for rate limiter
 	if err := s.rateLimiter.Wait(ctx); err != nil {
+		logger.Warn("ai rate limit wait failed", "module", "service", "action", "fetch", "resource", "ai", "result", "failed", "error", err)
 		return nil, nil, fmt.Errorf("rate limit: %w", err)
 	}
 
@@ -127,13 +130,19 @@ func (s *aiService) Summarize(ctx context.Context, entryID int64, content, title
 
 	// Start streaming
 	textCh, errCh := provider.SummarizeStream(ctx, systemPrompt, plainText)
+	logger.Info("ai summarize stream started", "module", "service", "action", "fetch", "resource", "ai", "result", "ok", "entry_id", entryID, "provider", cfg.Provider, "model", cfg.Model)
 
 	return textCh, errCh, nil
 }
 
 func (s *aiService) SaveSummary(ctx context.Context, entryID int64, isReadability bool, summary string) error {
 	language := s.GetSummaryLanguage(ctx)
-	return s.summaryRepo.Save(ctx, entryID, isReadability, language, summary)
+	if err := s.summaryRepo.Save(ctx, entryID, isReadability, language, summary); err != nil {
+		logger.Warn("ai summary save failed", "module", "service", "action", "save", "resource", "ai", "result", "failed", "entry_id", entryID, "error", err)
+		return err
+	}
+	logger.Info("ai summary saved", "module", "service", "action", "save", "resource", "ai", "result", "ok", "entry_id", entryID, "readability", isReadability)
+	return nil
 }
 
 func (s *aiService) GetSummaryLanguage(ctx context.Context) string {
@@ -198,12 +207,22 @@ func (s *aiService) getAIConfig(ctx context.Context) (ai.Config, error) {
 
 func (s *aiService) GetCachedTranslation(ctx context.Context, entryID int64, isReadability bool) (*model.AITranslation, error) {
 	language := s.GetSummaryLanguage(ctx)
-	return s.translationRepo.Get(ctx, entryID, isReadability, language)
+	translation, err := s.translationRepo.Get(ctx, entryID, isReadability, language)
+	if err != nil {
+		logger.Warn("ai translation cache lookup failed", "module", "service", "action", "fetch", "resource", "ai", "result", "failed", "entry_id", entryID, "error", err)
+		return nil, err
+	}
+	return translation, nil
 }
 
 func (s *aiService) SaveTranslation(ctx context.Context, entryID int64, isReadability bool, content string) error {
 	language := s.GetSummaryLanguage(ctx)
-	return s.translationRepo.Save(ctx, entryID, isReadability, language, content)
+	if err := s.translationRepo.Save(ctx, entryID, isReadability, language, content); err != nil {
+		logger.Warn("ai translation save failed", "module", "service", "action", "save", "resource", "ai", "result", "failed", "entry_id", entryID, "error", err)
+		return err
+	}
+	logger.Info("ai translation saved", "module", "service", "action", "save", "resource", "ai", "result", "ok", "entry_id", entryID, "readability", isReadability)
+	return nil
 }
 
 // TranslateBlocks parses HTML into blocks and translates them in parallel.
@@ -212,10 +231,12 @@ func (s *aiService) TranslateBlocks(ctx context.Context, entryID int64, content,
 	// Parse HTML into blocks
 	blocks, err := ai.ParseHTMLBlocks(content)
 	if err != nil {
+		logger.Warn("ai translate parse blocks failed", "module", "service", "action", "fetch", "resource", "ai", "result", "failed", "entry_id", entryID, "error", err)
 		return nil, nil, nil, fmt.Errorf("parse HTML blocks: %w", err)
 	}
 
 	if len(blocks) == 0 {
+		logger.Warn("ai translate no blocks", "module", "service", "action", "fetch", "resource", "ai", "result", "failed", "entry_id", entryID)
 		return nil, nil, nil, fmt.Errorf("no blocks to translate")
 	}
 
@@ -232,6 +253,7 @@ func (s *aiService) TranslateBlocks(ctx context.Context, entryID int64, content,
 	// Get AI configuration
 	cfg, err := s.getAIConfig(ctx)
 	if err != nil {
+		logger.Warn("ai translate get config failed", "module", "service", "action", "fetch", "resource", "ai", "result", "failed", "entry_id", entryID, "error", err)
 		return nil, nil, nil, err
 	}
 
@@ -360,8 +382,12 @@ func (s *aiService) TranslateBlocks(ctx context.Context, entryID int64, content,
 			}
 
 			// Save to cache
-			_ = s.SaveTranslation(ctx, entryID, isReadability, fullHTML.String())
+			if err := s.SaveTranslation(ctx, entryID, isReadability, fullHTML.String()); err != nil {
+				logger.Warn("ai translate cache save failed", "module", "service", "action", "save", "resource", "ai", "result", "failed", "entry_id", entryID, "error", err)
+			}
+
 		}
+
 	}()
 
 	return blockInfos, resultCh, errCh, nil
@@ -371,6 +397,7 @@ func (s *aiService) TranslateBlocks(ctx context.Context, entryID int64, content,
 // It first checks cache and only translates articles that don't have cached results.
 func (s *aiService) TranslateBatch(ctx context.Context, articles []BatchArticleInput) (<-chan BatchTranslateResult, <-chan error, error) {
 	if len(articles) == 0 {
+		logger.Warn("ai batch translate empty input", "module", "service", "action", "fetch", "resource", "ai", "result", "failed")
 		return nil, nil, fmt.Errorf("no articles to translate")
 	}
 
@@ -392,6 +419,7 @@ func (s *aiService) TranslateBatch(ctx context.Context, articles []BatchArticleI
 	// Batch fetch cached translations
 	cachedMap, err := s.listTranslationRepo.GetBatch(ctx, entryIDs, language)
 	if err != nil {
+		logger.Warn("ai batch translate cache lookup failed", "module", "service", "action", "fetch", "resource", "ai", "result", "failed", "error", err)
 		// Log error but continue without cache
 		cachedMap = make(map[int64]*model.AIListTranslation)
 	}
@@ -409,6 +437,7 @@ func (s *aiService) TranslateBatch(ctx context.Context, articles []BatchArticleI
 	if needsTranslation {
 		cfg, err = s.getAIConfig(ctx)
 		if err != nil {
+			logger.Warn("ai batch translate get config failed", "module", "service", "action", "fetch", "resource", "ai", "result", "failed", "error", err)
 			return nil, nil, err
 		}
 	}
@@ -435,16 +464,17 @@ func (s *aiService) TranslateBatch(ctx context.Context, articles []BatchArticleI
 			// Check cache first
 			if cached, ok := cachedMap[entryID]; ok {
 				result := BatchTranslateResult{
-					ID:     article.ID,
-					Title:  &cached.Title,
+					ID:      article.ID,
+					Title:   &cached.Title,
 					Summary: &cached.Summary,
-					Cached: true,
+					Cached:  true,
 				}
 				select {
 				case resultCh <- result:
 				case <-ctx.Done():
 					break articleLoop
 				}
+				logger.Debug("ai batch translate cache hit", "module", "service", "action", "fetch", "resource", "ai", "result", "ok", "entry_id", entryID, "cache", "hit")
 				continue
 			}
 
@@ -465,6 +495,7 @@ func (s *aiService) TranslateBatch(ctx context.Context, articles []BatchArticleI
 				// Create provider for this goroutine
 				provider, err := ai.NewProvider(cfg)
 				if err != nil {
+					logger.Warn("ai batch translate provider create failed", "module", "service", "action", "fetch", "resource", "ai", "result", "failed", "provider", cfg.Provider, "model", cfg.Model, "error", err)
 					select {
 					case errCh <- fmt.Errorf("create provider: %w", err):
 					default:
@@ -478,6 +509,7 @@ func (s *aiService) TranslateBatch(ctx context.Context, articles []BatchArticleI
 				if a.Title != "" {
 					// Wait for rate limiter
 					if err := s.rateLimiter.Wait(ctx); err != nil {
+						logger.Warn("ai batch translate rate limit", "module", "service", "action", "fetch", "resource", "ai", "result", "failed", "entry_id", eID, "error", err)
 						select {
 						case errCh <- fmt.Errorf("rate limit: %w", err):
 						default:
@@ -503,6 +535,7 @@ func (s *aiService) TranslateBatch(ctx context.Context, articles []BatchArticleI
 				if a.Summary != "" {
 					// Wait for rate limiter
 					if err := s.rateLimiter.Wait(ctx); err != nil {
+						logger.Warn("ai batch translate rate limit", "module", "service", "action", "fetch", "resource", "ai", "result", "failed", "entry_id", eID, "error", err)
 						select {
 						case errCh <- fmt.Errorf("rate limit: %w", err):
 						default:
@@ -524,7 +557,9 @@ func (s *aiService) TranslateBatch(ctx context.Context, articles []BatchArticleI
 
 				// Save to cache
 				if titleStr != "" || summaryStr != "" {
-					_ = s.listTranslationRepo.Save(ctx, eID, language, titleStr, summaryStr)
+					if err := s.listTranslationRepo.Save(ctx, eID, language, titleStr, summaryStr); err != nil {
+						logger.Warn("ai batch translate cache save failed", "module", "service", "action", "save", "resource", "ai", "result", "failed", "entry_id", eID, "error", err)
+					}
 				}
 
 				// Send result
@@ -569,5 +604,6 @@ func (s *aiService) ClearAllCache(ctx context.Context) (summaries, translations,
 		return summaries, translations, 0, fmt.Errorf("clear list translations: %w", err)
 	}
 
+	logger.Info("ai cache cleared", "module", "service", "action", "clear", "resource", "ai", "result", "ok", "summaries", summaries, "translations", translations, "list_translations", listTranslations)
 	return summaries, translations, listTranslations, nil
 }

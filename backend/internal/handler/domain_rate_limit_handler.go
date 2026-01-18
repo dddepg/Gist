@@ -6,6 +6,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 
+	"gist/backend/internal/logger"
 	"gist/backend/internal/service"
 )
 
@@ -52,6 +53,7 @@ func (h *DomainRateLimitHandler) List(c echo.Context) error {
 
 	limits, err := h.service.List(ctx)
 	if err != nil {
+		logger.Error("domain rate limit list failed", "module", "handler", "action", "list", "resource", "domain_rate_limit", "result", "failed", "error", err)
 		return writeServiceError(c, err)
 	}
 
@@ -93,6 +95,7 @@ func (h *DomainRateLimitHandler) Create(c echo.Context) error {
 
 	ctx := c.Request().Context()
 	if err := h.service.SetInterval(ctx, req.Host, req.IntervalSeconds); err != nil {
+		logger.Error("domain rate limit create failed", "module", "handler", "action", "create", "resource", "domain_rate_limit", "result", "failed", "host", req.Host, "error", err)
 		return writeServiceError(c, err)
 	}
 
@@ -104,6 +107,7 @@ func (h *DomainRateLimitHandler) Create(c echo.Context) error {
 
 	for _, l := range limits {
 		if l.Host == req.Host {
+			logger.Info("domain rate limit created", "module", "handler", "action", "create", "resource", "domain_rate_limit", "result", "ok", "host", l.Host, "interval_seconds", l.IntervalSeconds)
 			return c.JSON(http.StatusCreated, domainRateLimitResponse{
 				ID:              l.ID,
 				Host:            l.Host,
@@ -112,6 +116,7 @@ func (h *DomainRateLimitHandler) Create(c echo.Context) error {
 		}
 	}
 
+	logger.Info("domain rate limit created", "module", "handler", "action", "create", "resource", "domain_rate_limit", "result", "ok", "host", req.Host, "interval_seconds", req.IntervalSeconds)
 	return c.JSON(http.StatusCreated, domainRateLimitResponse{
 		Host:            req.Host,
 		IntervalSeconds: req.IntervalSeconds,
@@ -144,9 +149,11 @@ func (h *DomainRateLimitHandler) Update(c echo.Context) error {
 
 	ctx := c.Request().Context()
 	if err := h.service.SetInterval(ctx, host, req.IntervalSeconds); err != nil {
+		logger.Error("domain rate limit update failed", "module", "handler", "action", "update", "resource", "domain_rate_limit", "result", "failed", "host", host, "error", err)
 		return writeServiceError(c, err)
 	}
 
+	logger.Info("domain rate limit updated", "module", "handler", "action", "update", "resource", "domain_rate_limit", "result", "ok", "host", host, "interval_seconds", req.IntervalSeconds)
 	return c.JSON(http.StatusOK, domainRateLimitResponse{
 		Host:            host,
 		IntervalSeconds: req.IntervalSeconds,
@@ -168,10 +175,13 @@ func (h *DomainRateLimitHandler) Delete(c echo.Context) error {
 	ctx := c.Request().Context()
 	if err := h.service.DeleteInterval(ctx, host); err != nil {
 		if err == sql.ErrNoRows {
+			logger.Warn("domain rate limit delete not found", "module", "handler", "action", "delete", "resource", "domain_rate_limit", "result", "failed", "host", host, "error", "not found")
 			return c.JSON(http.StatusNotFound, map[string]string{"error": "not found"})
 		}
+		logger.Error("domain rate limit delete failed", "module", "handler", "action", "delete", "resource", "domain_rate_limit", "result", "failed", "host", host, "error", err)
 		return writeServiceError(c, err)
 	}
 
+	logger.Info("domain rate limit deleted", "module", "handler", "action", "delete", "resource", "domain_rate_limit", "result", "ok", "host", host)
 	return c.NoContent(http.StatusNoContent)
 }

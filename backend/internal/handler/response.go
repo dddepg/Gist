@@ -7,6 +7,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 
+	"gist/backend/internal/logger"
 	"gist/backend/internal/service"
 )
 
@@ -53,7 +54,7 @@ func writeServiceError(c echo.Context, err error) error {
 	case errors.Is(err, service.ErrFeedFetch):
 		return c.JSON(http.StatusBadGateway, errorResponse{Error: "feed fetch failed"})
 	default:
-		c.Logger().Error(err)
+		logger.Error("handler internal error", "module", "handler", "action", "request", "resource", "http", "result", "failed", "error", err)
 		return c.JSON(http.StatusInternalServerError, errorResponse{Error: "internal error"})
 	}
 }

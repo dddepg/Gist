@@ -7,6 +7,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 
+	"gist/backend/internal/logger"
 	"gist/backend/internal/network"
 	"gist/backend/internal/service"
 	"gist/backend/internal/service/ai"
@@ -167,7 +168,7 @@ func (h *SettingsHandler) RegisterRoutes(g *echo.Group) {
 func (h *SettingsHandler) GetAISettings(c echo.Context) error {
 	settings, err := h.service.GetAISettings(c.Request().Context())
 	if err != nil {
-		c.Logger().Error(err)
+		logger.Error("ai settings get failed", "module", "handler", "action", "list", "resource", "settings", "result", "failed", "error", err)
 		return c.JSON(http.StatusInternalServerError, errorResponse{Error: "failed to get settings"})
 	}
 
@@ -225,10 +226,11 @@ func (h *SettingsHandler) UpdateAISettings(c echo.Context) error {
 	}
 
 	if err := h.service.SetAISettings(c.Request().Context(), settings); err != nil {
-		c.Logger().Error(err)
+		logger.Error("ai settings update failed", "module", "handler", "action", "update", "resource", "settings", "result", "failed", "provider", req.Provider, "error", err)
 		return c.JSON(http.StatusInternalServerError, errorResponse{Error: "failed to save settings"})
 	}
 
+	logger.Info("ai settings updated", "module", "handler", "action", "update", "resource", "settings", "result", "ok", "provider", req.Provider)
 	// Return updated settings (with masked keys)
 	return h.GetAISettings(c)
 }
@@ -262,12 +264,14 @@ func (h *SettingsHandler) TestAI(c echo.Context) error {
 
 	response, err := h.service.TestAI(c.Request().Context(), req.Provider, req.APIKey, req.BaseURL, req.Model, endpoint, req.Thinking, req.ThinkingBudget, req.ReasoningEffort)
 	if err != nil {
+		logger.Warn("ai settings test failed", "module", "handler", "action", "test", "resource", "settings", "result", "failed", "provider", req.Provider, "error", err)
 		return c.JSON(http.StatusOK, aiTestResponse{
 			Success: false,
 			Error:   err.Error(),
 		})
 	}
 
+	logger.Info("ai settings test ok", "module", "handler", "action", "test", "resource", "settings", "result", "ok", "provider", req.Provider)
 	return c.JSON(http.StatusOK, aiTestResponse{
 		Success: true,
 		Message: response,
@@ -285,7 +289,7 @@ func (h *SettingsHandler) TestAI(c echo.Context) error {
 func (h *SettingsHandler) GetGeneralSettings(c echo.Context) error {
 	settings, err := h.service.GetGeneralSettings(c.Request().Context())
 	if err != nil {
-		c.Logger().Error(err)
+		logger.Error("general settings get failed", "module", "handler", "action", "list", "resource", "settings", "result", "failed", "error", err)
 		return c.JSON(http.StatusInternalServerError, errorResponse{Error: "failed to get settings"})
 	}
 
@@ -318,10 +322,11 @@ func (h *SettingsHandler) UpdateGeneralSettings(c echo.Context) error {
 	}
 
 	if err := h.service.SetGeneralSettings(c.Request().Context(), settings); err != nil {
-		c.Logger().Error(err)
+		logger.Error("general settings update failed", "module", "handler", "action", "update", "resource", "settings", "result", "failed", "error", err)
 		return c.JSON(http.StatusInternalServerError, errorResponse{Error: "failed to save settings"})
 	}
 
+	logger.Info("general settings updated", "module", "handler", "action", "update", "resource", "settings", "result", "ok")
 	return h.GetGeneralSettings(c)
 }
 
@@ -336,9 +341,11 @@ func (h *SettingsHandler) UpdateGeneralSettings(c echo.Context) error {
 func (h *SettingsHandler) ClearAnubisCookies(c echo.Context) error {
 	deleted, err := h.service.ClearAnubisCookies(c.Request().Context())
 	if err != nil {
+		logger.Error("anubis cookies clear failed", "module", "handler", "action", "clear", "resource", "settings", "result", "failed", "error", err)
 		return c.JSON(http.StatusInternalServerError, errorResponse{Error: err.Error()})
 	}
 
+	logger.Info("anubis cookies cleared", "module", "handler", "action", "clear", "resource", "settings", "result", "ok", "count", deleted)
 	return c.JSON(http.StatusOK, deletedCountResponse{Deleted: deleted})
 }
 
@@ -353,7 +360,7 @@ func (h *SettingsHandler) ClearAnubisCookies(c echo.Context) error {
 func (h *SettingsHandler) GetNetworkSettings(c echo.Context) error {
 	settings, err := h.service.GetNetworkSettings(c.Request().Context())
 	if err != nil {
-		c.Logger().Error(err)
+		logger.Error("network settings get failed", "module", "handler", "action", "list", "resource", "settings", "result", "failed", "error", err)
 		return c.JSON(http.StatusInternalServerError, errorResponse{Error: "failed to get settings"})
 	}
 
@@ -396,10 +403,11 @@ func (h *SettingsHandler) UpdateNetworkSettings(c echo.Context) error {
 	}
 
 	if err := h.service.SetNetworkSettings(c.Request().Context(), settings); err != nil {
-		c.Logger().Error(err)
+		logger.Error("network settings update failed", "module", "handler", "action", "update", "resource", "settings", "result", "failed", "enabled", req.Enabled, "type", req.Type, "error", err)
 		return c.JSON(http.StatusInternalServerError, errorResponse{Error: "failed to save settings"})
 	}
 
+	logger.Info("network settings updated", "module", "handler", "action", "update", "resource", "settings", "result", "ok", "enabled", req.Enabled, "type", req.Type)
 	return h.GetNetworkSettings(c)
 }
 
@@ -414,7 +422,7 @@ func (h *SettingsHandler) UpdateNetworkSettings(c echo.Context) error {
 func (h *SettingsHandler) GetAppearanceSettings(c echo.Context) error {
 	settings, err := h.service.GetAppearanceSettings(c.Request().Context())
 	if err != nil {
-		c.Logger().Error(err)
+		logger.Error("appearance settings get failed", "module", "handler", "action", "list", "resource", "settings", "result", "failed", "error", err)
 		return c.JSON(http.StatusInternalServerError, errorResponse{Error: "failed to get settings"})
 	}
 
@@ -440,9 +448,11 @@ func (h *SettingsHandler) UpdateAppearanceSettings(c echo.Context) error {
 
 	settings := &service.AppearanceSettings{ContentTypes: req.ContentTypes}
 	if err := h.service.SetAppearanceSettings(c.Request().Context(), settings); err != nil {
+		logger.Error("appearance settings update failed", "module", "handler", "action", "update", "resource", "settings", "result", "failed", "error", err)
 		return writeServiceError(c, err)
 	}
 
+	logger.Info("appearance settings updated", "module", "handler", "action", "update", "resource", "settings", "result", "ok")
 	return h.GetAppearanceSettings(c)
 }
 
@@ -492,12 +502,14 @@ func (h *SettingsHandler) TestNetworkProxy(c echo.Context) error {
 	const testURL = "https://captive.apple.com/"
 	err := h.clientFactory.TestProxyWithConfig(c.Request().Context(), proxyURL, testURL)
 	if err != nil {
+		logger.Warn("network proxy test failed", "module", "handler", "action", "test", "resource", "settings", "result", "failed", "type", proxyType, "host", req.Host, "error", err)
 		return c.JSON(http.StatusOK, networkTestResponse{
 			Success: false,
 			Error:   err.Error(),
 		})
 	}
 
+	logger.Info("network proxy test ok", "module", "handler", "action", "test", "resource", "settings", "result", "ok", "type", proxyType, "host", req.Host)
 	return c.JSON(http.StatusOK, networkTestResponse{
 		Success: true,
 		Message: "Proxy connection successful",

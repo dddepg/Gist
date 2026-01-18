@@ -29,7 +29,7 @@ func New(refreshService service.RefreshService, interval time.Duration) *Schedul
 func (s *Scheduler) Start() {
 	s.wg.Add(1)
 	go s.run()
-	logger.Info("scheduler started", "interval", s.interval)
+	logger.Info("scheduler started", "module", "scheduler", "action", "refresh", "resource", "feed", "result", "ok", "interval_ms", s.interval.Milliseconds())
 }
 
 func (s *Scheduler) Stop() {
@@ -42,7 +42,7 @@ func (s *Scheduler) Stop() {
 
 	close(s.stopCh)
 	s.wg.Wait()
-	logger.Info("scheduler stopped")
+	logger.Info("scheduler stopped", "module", "scheduler", "action", "refresh", "resource", "feed", "result", "ok")
 }
 
 func (s *Scheduler) run() {
@@ -80,13 +80,13 @@ func (s *Scheduler) refresh() {
 		s.mu.Unlock()
 	}()
 
-	logger.Info("starting scheduled feed refresh")
+	logger.Info("scheduled feed refresh started", "module", "scheduler", "action", "refresh", "resource", "feed", "result", "ok")
 	if err := s.refreshService.RefreshAll(ctx); err != nil {
 		if ctx.Err() != nil {
-			logger.Info("scheduled refresh cancelled")
+			logger.Warn("scheduled refresh cancelled", "module", "scheduler", "action", "refresh", "resource", "feed", "result", "cancelled")
 			return
 		}
-		logger.Error("scheduled refresh", "error", err)
+		logger.Error("scheduled refresh failed", "module", "scheduler", "action", "refresh", "resource", "feed", "result", "failed", "error", err)
 	}
-	logger.Info("scheduled feed refresh completed")
+	logger.Info("scheduled feed refresh completed", "module", "scheduler", "action", "refresh", "resource", "feed", "result", "ok")
 }

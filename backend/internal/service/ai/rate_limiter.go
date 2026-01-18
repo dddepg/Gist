@@ -5,6 +5,8 @@ import (
 	"sync"
 
 	"golang.org/x/time/rate"
+
+	"gist/backend/internal/logger"
 )
 
 // DefaultRateLimit is the default QPS limit.
@@ -43,6 +45,7 @@ func (r *RateLimiter) SetLimit(qps int) {
 	r.limiter.SetLimit(rate.Limit(qps))
 	r.limiter.SetBurst(qps)
 	r.mu.Unlock()
+	logger.Info("ai rate limit updated", "module", "ai", "action", "update", "resource", "ai", "result", "ok", "qps", qps)
 }
 
 // GetLimit returns the current rate limit.

@@ -9,6 +9,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 
+	"gist/backend/internal/logger"
 	"gist/backend/internal/service"
 )
 
@@ -68,16 +69,19 @@ func (h *AIHandler) RegisterRoutes(g *echo.Group) {
 func (h *AIHandler) Summarize(c echo.Context) error {
 	var req summarizeRequest
 	if err := c.Bind(&req); err != nil {
+		logger.Debug("ai summarize invalid request", "module", "handler", "action", "request", "resource", "ai", "result", "failed", "error", err)
 		return c.JSON(http.StatusBadRequest, errorResponse{Error: "invalid request"})
 	}
 
 	if req.Content == "" {
+		logger.Debug("ai summarize missing content", "module", "handler", "action", "request", "resource", "ai", "result", "failed")
 		return c.JSON(http.StatusBadRequest, errorResponse{Error: "content is required"})
 	}
 
 	// Parse entry ID
 	entryID, err := strconv.ParseInt(req.EntryID, 10, 64)
 	if err != nil {
+		logger.Debug("ai summarize invalid entry id", "module", "handler", "action", "request", "resource", "ai", "result", "failed", "entry_id", req.EntryID)
 		return c.JSON(http.StatusBadRequest, errorResponse{Error: "invalid entry ID"})
 	}
 
@@ -86,9 +90,10 @@ func (h *AIHandler) Summarize(c echo.Context) error {
 	// Check cache first
 	cached, err := h.service.GetCachedSummary(ctx, entryID, req.IsReadability)
 	if err != nil {
-		c.Logger().Errorf("get cached summary: %v", err)
+		logger.Warn("ai summarize cache lookup failed", "module", "handler", "action", "fetch", "resource", "ai", "result", "failed", "entry_id", entryID, "error", err)
 	}
 	if cached != nil {
+		logger.Info("ai summarize cache hit", "module", "handler", "action", "fetch", "resource", "ai", "result", "ok", "entry_id", entryID, "cache", "hit")
 		return c.JSON(http.StatusOK, summarizeResponse{
 			Summary: cached.Summary,
 			Cached:  true,
@@ -98,8 +103,11 @@ func (h *AIHandler) Summarize(c echo.Context) error {
 	// Generate summary with streaming
 	textCh, errCh, err := h.service.Summarize(ctx, entryID, req.Content, req.Title, req.IsReadability)
 	if err != nil {
+		logger.Error("ai summarize start failed", "module", "handler", "action", "fetch", "resource", "ai", "result", "failed", "entry_id", entryID, "error", err)
 		return c.JSON(http.StatusInternalServerError, errorResponse{Error: err.Error()})
 	}
+
+	logger.Info("ai summarize started", "module", "handler", "action", "fetch", "resource", "ai", "result", "ok", "entry_id", entryID)
 
 	// Set headers for SSE
 	c.Response().Header().Set("Content-Type", "text/event-stream")
@@ -118,22 +126,26 @@ func (h *AIHandler) Summarize(c echo.Context) error {
 				select {
 				case err := <-errCh:
 					if err != nil {
-						c.Logger().Errorf("summarize error: %v", err)
+						logger.Error("ai summarize stream error", "module", "handler", "action", "fetch", "resource", "ai", "result", "failed", "entry_id", entryID, "error", err)
 						// Write error to stream
 						fmt.Fprintf(c.Response(), "event: error\ndata: %s\n\n", err.Error())
 						c.Response().Flush()
 						return nil
 					}
+
 				default:
 				}
 
 				// Save to cache if we got content
 				if fullText.Len() > 0 {
 					if err := h.service.SaveSummary(ctx, entryID, req.IsReadability, fullText.String()); err != nil {
-						c.Logger().Errorf("save summary: %v", err)
+						logger.Warn("ai summarize cache save failed", "module", "handler", "action", "save", "resource", "ai", "result", "failed", "entry_id", entryID, "error", err)
+					} else {
+						logger.Info("ai summarize cached", "module", "handler", "action", "save", "resource", "ai", "result", "ok", "entry_id", entryID)
 					}
 				}
 
+				logger.Info("ai summarize completed", "module", "handler", "action", "fetch", "resource", "ai", "result", "ok", "entry_id", entryID)
 				return nil
 			}
 
@@ -146,6 +158,7 @@ func (h *AIHandler) Summarize(c echo.Context) error {
 			c.Response().Flush()
 
 		case <-ctx.Done():
+			logger.Warn("ai summarize cancelled", "module", "handler", "action", "fetch", "resource", "ai", "result", "cancelled", "entry_id", entryID)
 			return nil
 		}
 	}
@@ -193,16 +206,19 @@ type translateErrorEvent struct {
 func (h *AIHandler) Translate(c echo.Context) error {
 	var req translateRequest
 	if err := c.Bind(&req); err != nil {
+		logger.Debug("ai translate invalid request", "module", "handler", "action", "request", "resource", "ai", "result", "failed", "error", err)
 		return c.JSON(http.StatusBadRequest, errorResponse{Error: "invalid request"})
 	}
 
 	if req.Content == "" {
+		logger.Debug("ai translate missing content", "module", "handler", "action", "request", "resource", "ai", "result", "failed")
 		return c.JSON(http.StatusBadRequest, errorResponse{Error: "content is required"})
 	}
 
 	// Parse entry ID
 	entryID, err := strconv.ParseInt(req.EntryID, 10, 64)
 	if err != nil {
+		logger.Debug("ai translate invalid entry id", "module", "handler", "action", "request", "resource", "ai", "result", "failed", "entry_id", req.EntryID)
 		return c.JSON(http.StatusBadRequest, errorResponse{Error: "invalid entry ID"})
 	}
 
@@ -211,9 +227,10 @@ func (h *AIHandler) Translate(c echo.Context) error {
 	// Check cache first
 	cached, err := h.service.GetCachedTranslation(ctx, entryID, req.IsReadability)
 	if err != nil {
-		c.Logger().Errorf("get cached translation: %v", err)
+		logger.Warn("ai translate cache lookup failed", "module", "handler", "action", "fetch", "resource", "ai", "result", "failed", "entry_id", entryID, "error", err)
 	}
 	if cached != nil {
+		logger.Info("ai translate cache hit", "module", "handler", "action", "fetch", "resource", "ai", "result", "ok", "entry_id", entryID, "cache", "hit")
 		return c.JSON(http.StatusOK, translateResponse{
 			Content: cached.Content,
 			Cached:  true,
@@ -223,8 +240,11 @@ func (h *AIHandler) Translate(c echo.Context) error {
 	// Start block translation
 	blockInfos, resultCh, errCh, err := h.service.TranslateBlocks(ctx, entryID, req.Content, req.Title, req.IsReadability)
 	if err != nil {
+		logger.Error("ai translate start failed", "module", "handler", "action", "fetch", "resource", "ai", "result", "failed", "entry_id", entryID, "error", err)
 		return c.JSON(http.StatusInternalServerError, errorResponse{Error: err.Error()})
 	}
+
+	logger.Info("ai translate started", "module", "handler", "action", "fetch", "resource", "ai", "result", "ok", "entry_id", entryID)
 
 	// Set headers for SSE
 	c.Response().Header().Set("Content-Type", "text/event-stream")
@@ -256,6 +276,7 @@ func (h *AIHandler) Translate(c echo.Context) error {
 				data, _ := json.Marshal(doneEvent)
 				fmt.Fprintf(c.Response(), "data: %s\n\n", data)
 				c.Response().Flush()
+				logger.Info("ai translate completed", "module", "handler", "action", "fetch", "resource", "ai", "result", "ok", "entry_id", entryID)
 				return nil
 			}
 
@@ -267,7 +288,7 @@ func (h *AIHandler) Translate(c echo.Context) error {
 
 		case err := <-errCh:
 			if err != nil {
-				c.Logger().Errorf("translate error: %v", err)
+				logger.Error("ai translate stream error", "module", "handler", "action", "fetch", "resource", "ai", "result", "failed", "entry_id", entryID, "error", err)
 				errorEvent := translateErrorEvent{Error: err.Error()}
 				data, _ := json.Marshal(errorEvent)
 				fmt.Fprintf(c.Response(), "data: %s\n\n", data)
@@ -276,6 +297,7 @@ func (h *AIHandler) Translate(c echo.Context) error {
 			}
 
 		case <-ctx.Done():
+			logger.Warn("ai translate cancelled", "module", "handler", "action", "fetch", "resource", "ai", "result", "cancelled", "entry_id", entryID)
 			return nil
 		}
 	}
@@ -304,15 +326,18 @@ type batchTranslateRequest struct {
 func (h *AIHandler) TranslateBatch(c echo.Context) error {
 	var req batchTranslateRequest
 	if err := c.Bind(&req); err != nil {
+		logger.Debug("ai batch translate invalid request", "module", "handler", "action", "request", "resource", "ai", "result", "failed", "error", err)
 		return c.JSON(http.StatusBadRequest, errorResponse{Error: "invalid request"})
 	}
 
 	if len(req.Articles) == 0 {
+		logger.Debug("ai batch translate missing articles", "module", "handler", "action", "request", "resource", "ai", "result", "failed")
 		return c.JSON(http.StatusBadRequest, errorResponse{Error: "articles is required"})
 	}
 
 	// Limit batch size
 	if len(req.Articles) > 100 {
+		logger.Debug("ai batch translate too many articles", "module", "handler", "action", "request", "resource", "ai", "result", "failed", "count", len(req.Articles))
 		return c.JSON(http.StatusBadRequest, errorResponse{Error: "maximum 100 articles per batch"})
 	}
 
@@ -331,8 +356,11 @@ func (h *AIHandler) TranslateBatch(c echo.Context) error {
 	// Start batch translation
 	resultCh, errCh, err := h.service.TranslateBatch(ctx, articles)
 	if err != nil {
+		logger.Error("ai batch translate start failed", "module", "handler", "action", "fetch", "resource", "ai", "result", "failed", "count", len(articles), "error", err)
 		return c.JSON(http.StatusInternalServerError, errorResponse{Error: err.Error()})
 	}
+
+	logger.Info("ai batch translate started", "module", "handler", "action", "fetch", "resource", "ai", "result", "ok", "count", len(articles))
 
 	// Set headers for NDJSON streaming
 	c.Response().Header().Set("Content-Type", "application/x-ndjson")
@@ -346,6 +374,7 @@ func (h *AIHandler) TranslateBatch(c echo.Context) error {
 		case result, ok := <-resultCh:
 			if !ok {
 				// Channel closed, done
+				logger.Info("ai batch translate completed", "module", "handler", "action", "fetch", "resource", "ai", "result", "ok", "count", len(articles))
 				return nil
 			}
 
@@ -357,11 +386,12 @@ func (h *AIHandler) TranslateBatch(c echo.Context) error {
 
 		case err := <-errCh:
 			if err != nil {
-				c.Logger().Errorf("batch translate error: %v", err)
+				logger.Error("ai batch translate stream error", "module", "handler", "action", "fetch", "resource", "ai", "result", "failed", "error", err)
 				// Continue to receive remaining results
 			}
 
 		case <-ctx.Done():
+			logger.Warn("ai batch translate cancelled", "module", "handler", "action", "fetch", "resource", "ai", "result", "cancelled", "count", len(articles))
 			return nil
 		}
 	}
@@ -386,9 +416,11 @@ func (h *AIHandler) ClearCache(c echo.Context) error {
 
 	summaries, translations, listTranslations, err := h.service.ClearAllCache(ctx)
 	if err != nil {
+		logger.Error("ai cache clear failed", "module", "handler", "action", "clear", "resource", "ai", "result", "failed", "error", err)
 		return c.JSON(http.StatusInternalServerError, errorResponse{Error: err.Error()})
 	}
 
+	logger.Info("ai cache cleared", "module", "handler", "action", "clear", "resource", "ai", "result", "ok", "summaries", summaries, "translations", translations, "list_translations", listTranslations)
 	return c.JSON(http.StatusOK, clearCacheResponse{
 		Summaries:        summaries,
 		Translations:     translations,

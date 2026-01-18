@@ -97,7 +97,13 @@ func (s *entryService) List(ctx context.Context, params EntryListParams) ([]mode
 		Offset:       params.Offset,
 	}
 
-	return s.entries.List(ctx, filter)
+	entries, err := s.entries.List(ctx, filter)
+	if err != nil {
+		logger.Error("entry list failed", "module", "service", "action", "list", "resource", "entry", "result", "failed", "error", err)
+		return nil, err
+	}
+	logger.Debug("entry list", "module", "service", "action", "list", "resource", "entry", "result", "ok", "count", len(entries))
+	return entries, nil
 }
 
 func (s *entryService) GetByID(ctx context.Context, id int64) (model.Entry, error) {
@@ -108,6 +114,7 @@ func (s *entryService) GetByID(ctx context.Context, id int64) (model.Entry, erro
 		}
 		return model.Entry{}, err
 	}
+	logger.Debug("entry get", "module", "service", "action", "fetch", "resource", "entry", "result", "ok", "entry_id", id)
 	return entry, nil
 }
 
@@ -121,7 +128,12 @@ func (s *entryService) MarkAsRead(ctx context.Context, id int64, read bool) erro
 		return err
 	}
 
-	return s.entries.UpdateReadStatus(ctx, id, read)
+	if err := s.entries.UpdateReadStatus(ctx, id, read); err != nil {
+		logger.Error("entry update read failed", "module", "service", "action", "update", "resource", "entry", "result", "failed", "entry_id", id, "read", read, "error", err)
+		return err
+	}
+	logger.Info("entry read updated", "module", "service", "action", "update", "resource", "entry", "result", "ok", "entry_id", id, "read", read)
+	return nil
 }
 
 func (s *entryService) MarkAllAsRead(ctx context.Context, feedID *int64, folderID *int64, contentType *string) error {
@@ -147,12 +159,31 @@ func (s *entryService) MarkAllAsRead(ctx context.Context, feedID *int64, folderI
 		}
 	}
 
-	return s.entries.MarkAllAsRead(ctx, feedID, folderID, contentType)
+	var feedIDValue any
+	if feedID != nil {
+		feedIDValue = *feedID
+	}
+	var folderIDValue any
+	if folderID != nil {
+		folderIDValue = *folderID
+	}
+	var contentTypeValue any
+	if contentType != nil {
+		contentTypeValue = *contentType
+	}
+
+	if err := s.entries.MarkAllAsRead(ctx, feedID, folderID, contentType); err != nil {
+		logger.Error("entries mark all read failed", "module", "service", "action", "update", "resource", "entry", "result", "failed", "feed_id", feedIDValue, "folder_id", folderIDValue, "content_type", contentTypeValue, "error", err)
+		return err
+	}
+	logger.Info("entries marked read", "module", "service", "action", "update", "resource", "entry", "result", "ok", "feed_id", feedIDValue, "folder_id", folderIDValue, "content_type", contentTypeValue)
+	return nil
 }
 
 func (s *entryService) GetUnreadCounts(ctx context.Context) (map[int64]int, error) {
 	counts, err := s.entries.GetAllUnreadCounts(ctx)
 	if err != nil {
+		logger.Error("entry unread counts failed", "module", "service", "action", "list", "resource", "entry", "result", "failed", "error", err)
 		return nil, err
 	}
 
@@ -174,26 +205,45 @@ func (s *entryService) MarkAsStarred(ctx context.Context, id int64, starred bool
 		return err
 	}
 
-	return s.entries.UpdateStarredStatus(ctx, id, starred)
+	if err := s.entries.UpdateStarredStatus(ctx, id, starred); err != nil {
+		logger.Error("entry update starred failed", "module", "service", "action", "update", "resource", "entry", "result", "failed", "entry_id", id, "starred", starred, "error", err)
+		return err
+	}
+	logger.Info("entry starred updated", "module", "service", "action", "update", "resource", "entry", "result", "ok", "entry_id", id, "starred", starred)
+	return nil
 }
 
 func (s *entryService) GetStarredCount(ctx context.Context) (int, error) {
-	return s.entries.GetStarredCount(ctx)
+	count, err := s.entries.GetStarredCount(ctx)
+	if err != nil {
+		logger.Error("entry starred count failed", "module", "service", "action", "list", "resource", "entry", "result", "failed", "error", err)
+		return 0, err
+	}
+	logger.Debug("entry starred count", "module", "service", "action", "list", "resource", "entry", "result", "ok", "count", count)
+	return count, nil
 }
 
 func (s *entryService) ClearReadabilityCache(ctx context.Context) (int64, error) {
-	return s.entries.ClearAllReadableContent(ctx)
+	deleted, err := s.entries.ClearAllReadableContent(ctx)
+	if err != nil {
+		logger.Error("readability cache clear failed", "module", "service", "action", "clear", "resource", "entry", "result", "failed", "error", err)
+		return 0, err
+	}
+	logger.Info("readability cache cleared", "module", "service", "action", "clear", "resource", "entry", "result", "ok", "count", deleted)
+	return deleted, nil
 }
 
 func (s *entryService) ClearEntryCache(ctx context.Context) (int64, error) {
 	deleted, err := s.entries.DeleteUnstarred(ctx)
 	if err != nil {
+		logger.Error("entry cache clear failed", "module", "service", "action", "clear", "resource", "entry", "result", "failed", "error", err)
 		return 0, err
 	}
 	// 重置所有 feeds 的 Conditional GET 信息，强制下次刷新时全量拉取
 	// 避免因 304 Not Modified 导致已删除的文章无法被重新拉取
 	if _, resetErr := s.feeds.ClearAllConditionalGet(ctx); resetErr != nil {
-		logger.Warn("failed to reset feed conditional get after clearing entries", "error", resetErr)
+		logger.Warn("feed conditional get reset failed", "module", "service", "action", "update", "resource", "feed", "result", "failed", "error", resetErr)
 	}
+	logger.Info("entry cache cleared", "module", "service", "action", "clear", "resource", "entry", "result", "ok", "count", deleted)
 	return deleted, nil
 }

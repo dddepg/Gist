@@ -14,6 +14,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 
+	"gist/backend/internal/logger"
 	"gist/backend/internal/repository"
 )
 
@@ -134,6 +135,7 @@ func (s *authService) Register(ctx context.Context, username, nickname, email, p
 		return nil, err
 	}
 	if exists {
+		logger.Warn("auth register exists", "module", "service", "action", "create", "resource", "auth", "result", "failed", "actor", username)
 		return nil, ErrUserExists
 	}
 
@@ -173,6 +175,7 @@ func (s *authService) Register(ctx context.Context, username, nickname, email, p
 		return nil, err
 	}
 
+	logger.Info("auth register", "module", "service", "action", "create", "resource", "auth", "result", "ok", "actor", username)
 	return &AuthResponse{
 		Token: token,
 		User: &User{
@@ -210,6 +213,7 @@ func (s *authService) Login(ctx context.Context, identifier, password string) (*
 	// Check if identifier matches username or email
 	identifierLower := strings.ToLower(identifier)
 	if storedUsername != identifierLower && strings.ToLower(storedEmail) != identifierLower {
+		logger.Warn("auth login invalid identifier", "module", "service", "action", "login", "resource", "auth", "result", "failed", "actor", identifier)
 		return nil, ErrInvalidPassword
 	}
 
@@ -221,6 +225,7 @@ func (s *authService) Login(ctx context.Context, identifier, password string) (*
 
 	// Verify password
 	if err := bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(password)); err != nil {
+		logger.Warn("auth login invalid password", "module", "service", "action", "login", "resource", "auth", "result", "failed", "actor", identifier)
 		return nil, ErrInvalidPassword
 	}
 
@@ -240,6 +245,7 @@ func (s *authService) Login(ctx context.Context, identifier, password string) (*
 		return nil, err
 	}
 
+	logger.Info("auth login", "module", "service", "action", "login", "resource", "auth", "result", "ok", "actor", storedUsername)
 	return &AuthResponse{
 		Token: token,
 		User: &User{
@@ -331,6 +337,7 @@ func (s *authService) UpdateProfile(ctx context.Context, nickname, email, curren
 		return nil, err
 	}
 	if username == "" {
+		logger.Warn("auth profile update missing user", "module", "service", "action", "update", "resource", "auth", "result", "failed")
 		return nil, ErrUserNotFound
 	}
 
@@ -345,6 +352,7 @@ func (s *authService) UpdateProfile(ctx context.Context, nickname, email, curren
 	nickname = strings.TrimSpace(nickname)
 	if nickname != "" && nickname != currentNickname {
 		if err := s.repo.Set(ctx, keyUserNickname, nickname); err != nil {
+			logger.Warn("auth profile update nickname failed", "module", "service", "action", "update", "resource", "auth", "result", "failed", "actor", username, "error", err)
 			return nil, fmt.Errorf("update nickname: %w", err)
 		}
 		currentNickname = nickname
@@ -354,6 +362,7 @@ func (s *authService) UpdateProfile(ctx context.Context, nickname, email, curren
 	email = strings.TrimSpace(email)
 	if email != "" && email != currentEmail {
 		if err := s.repo.Set(ctx, keyUserEmail, email); err != nil {
+			logger.Warn("auth profile update email failed", "module", "service", "action", "update", "resource", "auth", "result", "failed", "actor", username, "error", err)
 			return nil, fmt.Errorf("update email: %w", err)
 		}
 		currentEmail = email
@@ -364,9 +373,11 @@ func (s *authService) UpdateProfile(ctx context.Context, nickname, email, curren
 	// Update password if provided
 	if newPassword != "" {
 		if currentPassword == "" {
+			logger.Warn("auth profile update missing current password", "module", "service", "action", "update", "resource", "auth", "result", "failed", "actor", username)
 			return nil, ErrCurrentPasswordRequired
 		}
 		if len(newPassword) < 6 {
+			logger.Warn("auth profile update password too short", "module", "service", "action", "update", "resource", "auth", "result", "failed", "actor", username)
 			return nil, ErrPasswordTooShort
 		}
 
@@ -376,11 +387,13 @@ func (s *authService) UpdateProfile(ctx context.Context, nickname, email, curren
 			return nil, err
 		}
 		if err := bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(currentPassword)); err != nil {
+			logger.Warn("auth profile update invalid current password", "module", "service", "action", "update", "resource", "auth", "result", "failed", "actor", username)
 			return nil, ErrInvalidPassword
 		}
 
 		// Check if new password is different
 		if err := bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(newPassword)); err == nil {
+			logger.Warn("auth profile update same password", "module", "service", "action", "update", "resource", "auth", "result", "failed", "actor", username)
 			return nil, ErrSamePassword
 		}
 
@@ -390,6 +403,7 @@ func (s *authService) UpdateProfile(ctx context.Context, nickname, email, curren
 			return nil, fmt.Errorf("hash password: %w", err)
 		}
 		if err := s.repo.Set(ctx, keyUserPasswordHash, string(hash)); err != nil {
+			logger.Warn("auth profile update password failed", "module", "service", "action", "update", "resource", "auth", "result", "failed", "actor", username, "error", err)
 			return nil, fmt.Errorf("update password: %w", err)
 		}
 
@@ -400,6 +414,7 @@ func (s *authService) UpdateProfile(ctx context.Context, nickname, email, curren
 		}
 		jwtSecretHex := hex.EncodeToString(newJwtSecret)
 		if err := s.repo.Set(ctx, keyUserJWTSecret, jwtSecretHex); err != nil {
+			logger.Warn("auth profile update jwt secret failed", "module", "service", "action", "update", "resource", "auth", "result", "failed", "actor", username, "error", err)
 			return nil, fmt.Errorf("update jwt secret: %w", err)
 		}
 
@@ -411,6 +426,7 @@ func (s *authService) UpdateProfile(ctx context.Context, nickname, email, curren
 		newToken = &token
 	}
 
+	logger.Info("auth profile updated", "module", "service", "action", "update", "resource", "auth", "result", "ok", "actor", username, "password_changed", newToken != nil)
 	return &UpdateProfileResponse{
 		User: &User{
 			Username:  username,

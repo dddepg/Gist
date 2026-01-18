@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"gist/backend/internal/logger"
 )
 
 type ImportTask struct {
@@ -58,6 +60,7 @@ func (m *importTaskManager) Start(total int) (string, context.Context) {
 		Current:   0,
 		CreatedAt: time.Now(),
 	}
+	logger.Info("import task started", "module", "service", "action", "import", "resource", "opml", "result", "ok", "task_id", id, "total", total)
 	return id, ctx
 }
 
@@ -79,6 +82,7 @@ func (m *importTaskManager) Complete(result ImportResult) {
 		m.current.Status = "done"
 		m.current.Result = &result
 		m.current.Feed = ""
+		logger.Info("import task completed", "module", "service", "action", "import", "resource", "opml", "result", "ok", "task_id", m.current.ID, "feeds_created", result.FeedsCreated, "feeds_skipped", result.FeedsSkipped)
 	}
 }
 
@@ -90,6 +94,7 @@ func (m *importTaskManager) Fail(err error) {
 		m.current.Status = "error"
 		m.current.Error = err.Error()
 		m.current.Feed = ""
+		logger.Error("import task failed", "module", "service", "action", "import", "resource", "opml", "result", "failed", "task_id", m.current.ID, "error", err)
 	}
 }
 
@@ -125,5 +130,6 @@ func (m *importTaskManager) Cancel() bool {
 
 	m.current.Status = "cancelled"
 	m.current.Feed = ""
+	logger.Warn("import task cancelled", "module", "service", "action", "import", "resource", "opml", "result", "cancelled", "task_id", m.current.ID)
 	return true
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 
+	"gist/backend/internal/logger"
 	"gist/backend/internal/service"
 )
 
@@ -46,9 +47,11 @@ func (h *IconHandler) GetIcon(c echo.Context) error {
 
 	// Check if file exists
 	if _, err := os.Stat(fullPath); err == nil {
+		logger.Debug("icon served", "module", "handler", "action", "fetch", "resource", "icon", "result", "ok", "filename", filename)
 		return c.File(fullPath)
 	}
 
+	logger.Debug("icon not found", "module", "handler", "action", "fetch", "resource", "icon", "result", "failed", "filename", filename)
 	// Icon not found - frontend will show fallback
 	return c.NoContent(http.StatusNotFound)
 }
@@ -64,8 +67,10 @@ func (h *IconHandler) GetIcon(c echo.Context) error {
 func (h *IconHandler) ClearIconCache(c echo.Context) error {
 	deleted, err := h.iconService.ClearAllIcons(c.Request().Context())
 	if err != nil {
+		logger.Error("icon cache clear failed", "module", "handler", "action", "clear", "resource", "icon", "result", "failed", "error", err)
 		return c.JSON(http.StatusInternalServerError, errorResponse{Error: err.Error()})
 	}
 
+	logger.Info("icon cache cleared", "module", "handler", "action", "clear", "resource", "icon", "result", "ok", "count", deleted)
 	return c.JSON(http.StatusOK, iconClearResponse{Deleted: deleted})
 }

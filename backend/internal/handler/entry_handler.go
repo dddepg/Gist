@@ -8,6 +8,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 
+	"gist/backend/internal/logger"
 	"gist/backend/internal/model"
 	"gist/backend/internal/service"
 )
@@ -161,6 +162,7 @@ func (h *EntryHandler) List(c echo.Context) error {
 
 	entries, err := h.service.List(c.Request().Context(), queryParams)
 	if err != nil {
+		logger.Error("entry list failed", "module", "handler", "action", "list", "resource", "entry", "result", "failed", "error", err)
 		return writeServiceError(c, err)
 	}
 
@@ -199,9 +201,11 @@ func (h *EntryHandler) GetByID(c echo.Context) error {
 
 	entry, err := h.service.GetByID(c.Request().Context(), id)
 	if err != nil {
+		logger.Warn("entry get failed", "module", "handler", "action", "fetch", "resource", "entry", "result", "failed", "entry_id", id, "error", err)
 		return writeServiceError(c, err)
 	}
 
+	logger.Debug("entry fetched", "module", "handler", "action", "fetch", "resource", "entry", "result", "ok", "entry_id", id)
 	return c.JSON(http.StatusOK, toEntryResponse(entry))
 }
 
@@ -229,9 +233,11 @@ func (h *EntryHandler) UpdateReadStatus(c echo.Context) error {
 	}
 
 	if err := h.service.MarkAsRead(c.Request().Context(), id, req.Read); err != nil {
+		logger.Error("entry read status update failed", "module", "handler", "action", "update", "resource", "entry", "result", "failed", "entry_id", id, "read", req.Read, "error", err)
 		return writeServiceError(c, err)
 	}
 
+	logger.Info("entry read status updated", "module", "handler", "action", "update", "resource", "entry", "result", "ok", "entry_id", id, "read", req.Read)
 	return c.NoContent(http.StatusNoContent)
 }
 
@@ -254,15 +260,19 @@ func (h *EntryHandler) FetchReadable(c echo.Context) error {
 	content, err := h.readabilityService.FetchReadableContent(c.Request().Context(), id)
 	if err != nil {
 		if errors.Is(err, service.ErrNotFound) {
+			logger.Warn("readability fetch failed", "module", "handler", "action", "fetch", "resource", "entry", "result", "failed", "entry_id", id, "error", "not found")
 			return c.JSON(http.StatusNotFound, errorResponse{Error: "entry not found"})
 		}
 		if errors.Is(err, service.ErrInvalid) {
+			logger.Warn("readability fetch failed", "module", "handler", "action", "fetch", "resource", "entry", "result", "failed", "entry_id", id, "error", "invalid content")
 			return c.JSON(http.StatusBadRequest, errorResponse{Error: "no URL or empty content"})
 		}
+		logger.Error("readability fetch failed", "module", "handler", "action", "fetch", "resource", "entry", "result", "failed", "entry_id", id, "error", err)
 		// Return the actual error message
 		return c.JSON(http.StatusBadGateway, errorResponse{Error: err.Error()})
 	}
 
+	logger.Info("readability fetched", "module", "handler", "action", "fetch", "resource", "entry", "result", "ok", "entry_id", id)
 	return c.JSON(http.StatusOK, readableContentResponse{ReadableContent: content})
 }
 
@@ -308,10 +318,25 @@ func (h *EntryHandler) MarkAllAsRead(c echo.Context) error {
 		contentType = &ct
 	}
 
+	var feedIDValue any
+	if feedID != nil {
+		feedIDValue = *feedID
+	}
+	var folderIDValue any
+	if folderID != nil {
+		folderIDValue = *folderID
+	}
+	var contentTypeValue any
+	if contentType != nil {
+		contentTypeValue = *contentType
+	}
+
 	if err := h.service.MarkAllAsRead(c.Request().Context(), feedID, folderID, contentType); err != nil {
+		logger.Error("entries mark all read failed", "module", "handler", "action", "update", "resource", "entry", "result", "failed", "feed_id", feedIDValue, "folder_id", folderIDValue, "content_type", contentTypeValue, "error", err)
 		return writeServiceError(c, err)
 	}
 
+	logger.Info("entries marked read", "module", "handler", "action", "update", "resource", "entry", "result", "ok", "feed_id", feedIDValue, "folder_id", folderIDValue, "content_type", contentTypeValue)
 	return c.NoContent(http.StatusNoContent)
 }
 
@@ -325,6 +350,7 @@ func (h *EntryHandler) MarkAllAsRead(c echo.Context) error {
 func (h *EntryHandler) GetUnreadCounts(c echo.Context) error {
 	counts, err := h.service.GetUnreadCounts(c.Request().Context())
 	if err != nil {
+		logger.Error("entry unread counts failed", "module", "handler", "action", "list", "resource", "entry", "result", "failed", "error", err)
 		return writeServiceError(c, err)
 	}
 
@@ -361,9 +387,11 @@ func (h *EntryHandler) UpdateStarredStatus(c echo.Context) error {
 	}
 
 	if err := h.service.MarkAsStarred(c.Request().Context(), id, req.Starred); err != nil {
+		logger.Error("entry starred status update failed", "module", "handler", "action", "update", "resource", "entry", "result", "failed", "entry_id", id, "starred", req.Starred, "error", err)
 		return writeServiceError(c, err)
 	}
 
+	logger.Info("entry starred status updated", "module", "handler", "action", "update", "resource", "entry", "result", "ok", "entry_id", id, "starred", req.Starred)
 	return c.NoContent(http.StatusNoContent)
 }
 
@@ -377,6 +405,7 @@ func (h *EntryHandler) UpdateStarredStatus(c echo.Context) error {
 func (h *EntryHandler) GetStarredCount(c echo.Context) error {
 	count, err := h.service.GetStarredCount(c.Request().Context())
 	if err != nil {
+		logger.Error("entry starred count failed", "module", "handler", "action", "list", "resource", "entry", "result", "failed", "error", err)
 		return writeServiceError(c, err)
 	}
 
@@ -394,9 +423,11 @@ func (h *EntryHandler) GetStarredCount(c echo.Context) error {
 func (h *EntryHandler) ClearReadabilityCache(c echo.Context) error {
 	deleted, err := h.service.ClearReadabilityCache(c.Request().Context())
 	if err != nil {
+		logger.Error("readability cache clear failed", "module", "handler", "action", "clear", "resource", "entry", "result", "failed", "error", err)
 		return c.JSON(http.StatusInternalServerError, errorResponse{Error: err.Error()})
 	}
 
+	logger.Info("readability cache cleared", "module", "handler", "action", "clear", "resource", "entry", "result", "ok", "count", deleted)
 	return c.JSON(http.StatusOK, entryClearResponse{Deleted: deleted})
 }
 
@@ -411,9 +442,11 @@ func (h *EntryHandler) ClearReadabilityCache(c echo.Context) error {
 func (h *EntryHandler) ClearEntryCache(c echo.Context) error {
 	deleted, err := h.service.ClearEntryCache(c.Request().Context())
 	if err != nil {
+		logger.Error("entry cache clear failed", "module", "handler", "action", "clear", "resource", "entry", "result", "failed", "error", err)
 		return c.JSON(http.StatusInternalServerError, errorResponse{Error: err.Error()})
 	}
 
+	logger.Info("entry cache cleared", "module", "handler", "action", "clear", "resource", "entry", "result", "ok", "count", deleted)
 	return c.JSON(http.StatusOK, entryClearResponse{Deleted: deleted})
 }
 

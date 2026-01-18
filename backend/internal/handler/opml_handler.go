@@ -11,6 +11,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 
+	"gist/backend/internal/logger"
 	"gist/backend/internal/service"
 )
 
@@ -77,9 +78,11 @@ func (h *OPMLHandler) Import(c echo.Context) error {
 	// Read file content into memory for background processing
 	content, err := io.ReadAll(reader)
 	if err != nil {
+		logger.Warn("opml import read failed", "module", "handler", "action", "import", "resource", "opml", "result", "failed", "error", err)
 		return c.JSON(http.StatusBadRequest, errorResponse{Error: "read file failed"})
 	}
 
+	logger.Info("opml import started", "module", "handler", "action", "import", "resource", "opml", "result", "ok", "count", len(content))
 	// Start background import
 	go h.runImport(content)
 
@@ -104,16 +107,20 @@ func (h *OPMLHandler) runImport(content []byte) {
 	if err != nil {
 		// Check if cancelled
 		if ctx.Err() != nil {
+			logger.Warn("opml import cancelled", "module", "handler", "action", "import", "resource", "opml", "result", "cancelled")
 			return // Already marked as cancelled
 		}
+		logger.Error("opml import failed", "module", "handler", "action", "import", "resource", "opml", "result", "failed", "error", err)
 		h.taskManager.Fail(err)
 		return
 	}
 
 	// Check if cancelled before marking complete
 	if ctx.Err() != nil {
+		logger.Warn("opml import cancelled", "module", "handler", "action", "import", "resource", "opml", "result", "cancelled")
 		return
 	}
+	logger.Info("opml import completed", "module", "handler", "action", "import", "resource", "opml", "result", "ok", "folders_created", result.FoldersCreated, "folders_skipped", result.FoldersSkipped, "feeds_created", result.FeedsCreated, "feeds_skipped", result.FeedsSkipped)
 	h.taskManager.Complete(result)
 }
 
@@ -136,6 +143,7 @@ func (h *OPMLHandler) countFeedsInOPML(reader io.Reader) int {
 // @Router /opml/import [delete]
 func (h *OPMLHandler) CancelImport(c echo.Context) error {
 	cancelled := h.taskManager.Cancel()
+	logger.Info("opml import cancel", "module", "handler", "action", "import", "resource", "opml", "result", "ok", "cancelled", cancelled)
 	return c.JSON(http.StatusOK, importCancelledResponse{Cancelled: cancelled})
 }
 
@@ -198,8 +206,10 @@ func (h *OPMLHandler) sendTaskStatus(res *echo.Response) {
 func (h *OPMLHandler) Export(c echo.Context) error {
 	payload, err := h.service.Export(c.Request().Context())
 	if err != nil {
+		logger.Error("opml export failed", "module", "handler", "action", "export", "resource", "opml", "result", "failed", "error", err)
 		return writeServiceError(c, err)
 	}
+	logger.Info("opml export", "module", "handler", "action", "export", "resource", "opml", "result", "ok")
 	c.Response().Header().Set("Content-Disposition", `attachment; filename="gist.opml"`)
 	return c.Blob(http.StatusOK, "application/xml", payload)
 }

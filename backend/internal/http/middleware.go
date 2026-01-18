@@ -14,7 +14,7 @@ import (
 // AuthCookieName is the name of the authentication cookie.
 const AuthCookieName = "gist_auth"
 
-// RequestLoggerMiddleware logs HTTP requests using slog.
+// RequestLoggerMiddleware logs HTTP requests using logger.
 func RequestLoggerMiddleware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
@@ -28,28 +28,54 @@ func RequestLoggerMiddleware() echo.MiddlewareFunc {
 			req := c.Request()
 			res := c.Response()
 			latency := time.Since(start)
+			remoteIP := c.RealIP()
+			userAgent := req.UserAgent()
 
 			status := res.Status
+			action := "request"
+			resource := "http"
+			result := "ok"
+			if status >= 400 {
+				result = "failed"
+			}
 			if status >= 500 {
-				logger.Error("request",
+				logger.Error("http request",
+					"module", "http",
+					"action", action,
+					"resource", resource,
+					"result", result,
 					"method", req.Method,
-					"uri", req.RequestURI,
-					"status", status,
-					"latency", latency,
+					"path", req.URL.Path,
+					"status_code", status,
+					"duration_ms", latency.Milliseconds(),
+					"remote_ip", remoteIP,
+					"user_agent", userAgent,
 				)
 			} else if status >= 400 {
-				logger.Warn("request",
+				logger.Warn("http request",
+					"module", "http",
+					"action", action,
+					"resource", resource,
+					"result", result,
 					"method", req.Method,
-					"uri", req.RequestURI,
-					"status", status,
-					"latency", latency,
+					"path", req.URL.Path,
+					"status_code", status,
+					"duration_ms", latency.Milliseconds(),
+					"remote_ip", remoteIP,
+					"user_agent", userAgent,
 				)
 			} else {
-				logger.Debug("request",
+				logger.Debug("http request",
+					"module", "http",
+					"action", action,
+					"resource", resource,
+					"result", result,
 					"method", req.Method,
-					"uri", req.RequestURI,
-					"status", status,
-					"latency", latency,
+					"path", req.URL.Path,
+					"status_code", status,
+					"duration_ms", latency.Milliseconds(),
+					"remote_ip", remoteIP,
+					"user_agent", userAgent,
 				)
 			}
 
@@ -82,6 +108,15 @@ func JWTAuthMiddleware(authService service.AuthService) echo.MiddlewareFunc {
 			}
 
 			if token == "" {
+				logger.Warn("auth missing",
+					"module", "http",
+					"action", "request",
+					"resource", "auth",
+					"result", "failed",
+					"method", c.Request().Method,
+					"path", c.Request().URL.Path,
+					"remote_ip", c.RealIP(),
+				)
 				return c.JSON(http.StatusUnauthorized, map[string]string{
 					"error": "missing authentication",
 				})
@@ -90,6 +125,15 @@ func JWTAuthMiddleware(authService service.AuthService) echo.MiddlewareFunc {
 			// Validate token
 			valid, err := authService.ValidateToken(token)
 			if err != nil || !valid {
+				logger.Warn("auth invalid",
+					"module", "http",
+					"action", "request",
+					"resource", "auth",
+					"result", "failed",
+					"method", c.Request().Method,
+					"path", c.Request().URL.Path,
+					"remote_ip", c.RealIP(),
+				)
 				return c.JSON(http.StatusUnauthorized, map[string]string{
 					"error": "invalid token",
 				})

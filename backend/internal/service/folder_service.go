@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"gist/backend/internal/logger"
 	"gist/backend/internal/model"
 	"gist/backend/internal/repository"
 )
@@ -78,11 +79,22 @@ func (s *folderService) Create(ctx context.Context, name string, parentID *int64
 		return model.Folder{}, ErrConflict
 	}
 
-	return s.folders.Create(ctx, trimmed, parentID, folderType)
+	folder, err := s.folders.Create(ctx, trimmed, parentID, folderType)
+	if err != nil {
+		logger.Error("folder create failed", "module", "service", "action", "create", "resource", "folder", "result", "failed", "error", err)
+		return model.Folder{}, err
+	}
+	logger.Info("folder created", "module", "service", "action", "create", "resource", "folder", "result", "ok", "folder_id", folder.ID)
+	return folder, nil
 }
 
 func (s *folderService) List(ctx context.Context) ([]model.Folder, error) {
-	return s.folders.List(ctx)
+	folders, err := s.folders.List(ctx)
+	if err != nil {
+		logger.Error("folder list failed", "module", "service", "action", "list", "resource", "folder", "result", "failed", "error", err)
+		return nil, err
+	}
+	return folders, nil
 }
 
 func (s *folderService) Update(ctx context.Context, id int64, name string, parentID *int64) (model.Folder, error) {
@@ -119,7 +131,13 @@ func (s *folderService) Update(ctx context.Context, id int64, name string, paren
 		return model.Folder{}, ErrConflict
 	}
 
-	return s.folders.Update(ctx, id, trimmed, parentID)
+	updated, err := s.folders.Update(ctx, id, trimmed, parentID)
+	if err != nil {
+		logger.Error("folder update failed", "module", "service", "action", "update", "resource", "folder", "result", "failed", "folder_id", id, "error", err)
+		return model.Folder{}, err
+	}
+	logger.Info("folder updated", "module", "service", "action", "update", "resource", "folder", "result", "ok", "folder_id", updated.ID)
+	return updated, nil
 }
 
 func (s *folderService) UpdateType(ctx context.Context, id int64, folderType string) error {
@@ -132,14 +150,17 @@ func (s *folderService) UpdateType(ctx context.Context, id int64, folderType str
 
 	// Update folder type
 	if err := s.folders.UpdateType(ctx, id, folderType); err != nil {
+		logger.Error("folder update type failed", "module", "service", "action", "update", "resource", "folder", "result", "failed", "folder_id", id, "type", folderType, "error", err)
 		return err
 	}
 
 	// Update all feeds in this folder to the same type using batch operation
 	if err := s.feeds.UpdateTypeByFolderID(ctx, id, folderType); err != nil {
+		logger.Error("folder update feeds type failed", "module", "service", "action", "update", "resource", "feed", "result", "failed", "folder_id", id, "type", folderType, "error", err)
 		return fmt.Errorf("update feeds type in folder: %w", err)
 	}
 
+	logger.Info("folder type updated", "module", "service", "action", "update", "resource", "folder", "result", "ok", "folder_id", id, "type", folderType)
 	return nil
 }
 
@@ -162,9 +183,15 @@ func (s *folderService) Delete(ctx context.Context, id int64) error {
 			feedIDs[i] = feed.ID
 		}
 		if _, err := s.feeds.DeleteBatch(ctx, feedIDs); err != nil {
+			logger.Error("folder delete feeds failed", "module", "service", "action", "delete", "resource", "feed", "result", "failed", "folder_id", id, "count", len(feedIDs), "error", err)
 			return fmt.Errorf("delete feeds in folder: %w", err)
 		}
 	}
 
-	return s.folders.Delete(ctx, id)
+	if err := s.folders.Delete(ctx, id); err != nil {
+		logger.Error("folder delete failed", "module", "service", "action", "delete", "resource", "folder", "result", "failed", "folder_id", id, "error", err)
+		return err
+	}
+	logger.Info("folder deleted", "module", "service", "action", "delete", "resource", "folder", "result", "ok", "folder_id", id)
+	return nil
 }

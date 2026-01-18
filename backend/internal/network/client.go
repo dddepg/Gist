@@ -2,7 +2,6 @@ package network
 
 import (
 	"context"
-	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -11,6 +10,8 @@ import (
 
 	"github.com/Noooste/azuretls-client"
 	"golang.org/x/net/proxy"
+
+	"gist/backend/internal/logger"
 )
 
 // ProxyProvider provides proxy configuration.
@@ -230,14 +231,14 @@ func (f *ClientFactory) makeDialFunc(ipStack string) func(ctx context.Context, n
 func dialWithIPStack(ctx context.Context, network, addr string, ipStack string) (net.Conn, error) {
 	switch ipStack {
 	case "ipv4":
-		slog.Debug("dialing with IPv4 preference", "addr", addr)
+		logger.Debug("dialing with IPv4 preference", "module", "network", "action", "dial", "resource", "network", "result", "ok", "addr", addr)
 		return dialWithPreference(ctx, addr, "tcp4", "tcp6")
 	case "ipv6":
-		slog.Debug("dialing with IPv6 preference", "addr", addr)
+		logger.Debug("dialing with IPv6 preference", "module", "network", "action", "dial", "resource", "network", "result", "ok", "addr", addr)
 		return dialWithPreference(ctx, addr, "tcp6", "tcp4")
 	default:
 		// Happy Eyeballs - use standard Dialer
-		slog.Debug("dialing with Happy Eyeballs", "addr", addr)
+		logger.Debug("dialing with Happy Eyeballs", "module", "network", "action", "dial", "resource", "network", "result", "ok", "addr", addr)
 		d := &net.Dialer{Timeout: 30 * time.Second}
 		return d.DialContext(ctx, network, addr)
 	}
@@ -249,18 +250,18 @@ func dialWithPreference(ctx context.Context, addr, primary, fallback string) (ne
 	d := &net.Dialer{Timeout: 3 * time.Second}
 	conn, err := d.DialContext(ctx, primary, addr)
 	if err == nil {
-		slog.Debug("dial succeeded", "network", primary, "addr", addr)
+		logger.Debug("dial succeeded", "module", "network", "action", "dial", "resource", "network", "result", "ok", "network", primary, "addr", addr)
 		return conn, nil
 	}
 
 	// Primary failed, try fallback with longer timeout
-	slog.Debug("primary dial failed, trying fallback", "primary", primary, "fallback", fallback, "addr", addr, "error", err)
+	logger.Debug("primary dial failed, trying fallback", "module", "network", "action", "dial", "resource", "network", "result", "skipped", "primary", primary, "fallback", fallback, "addr", addr, "error", err)
 	d.Timeout = 30 * time.Second
 	conn, err = d.DialContext(ctx, fallback, addr)
 	if err == nil {
-		slog.Debug("fallback dial succeeded", "network", fallback, "addr", addr)
+		logger.Debug("fallback dial succeeded", "module", "network", "action", "dial", "resource", "network", "result", "ok", "network", fallback, "addr", addr)
 	} else {
-		slog.Debug("fallback dial failed", "network", fallback, "addr", addr, "error", err)
+		logger.Debug("fallback dial failed", "module", "network", "action", "dial", "resource", "network", "result", "failed", "network", fallback, "addr", addr, "error", err)
 	}
 	return conn, err
 }

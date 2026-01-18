@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 
+	"gist/backend/internal/logger"
 	"gist/backend/internal/repository"
 	"gist/backend/internal/service/ai"
 )
@@ -174,15 +175,19 @@ func (s *settingsService) SetAISettings(ctx context.Context, settings *AISetting
 		}
 	}
 	if err := s.setAPIKey(ctx, keyAIAPIKey, settings.APIKey); err != nil {
+		logger.Warn("ai settings update api key failed", "module", "service", "action", "update", "resource", "settings", "result", "failed", "error", err)
 		return fmt.Errorf("set api key: %w", err)
 	}
 	if err := s.repo.Set(ctx, keyAIBaseURL, settings.BaseURL); err != nil {
+		logger.Warn("ai settings update base url failed", "module", "service", "action", "update", "resource", "settings", "result", "failed", "error", err)
 		return fmt.Errorf("set base url: %w", err)
 	}
 	if err := s.repo.Set(ctx, keyAIModel, settings.Model); err != nil {
+		logger.Warn("ai settings update model failed", "module", "service", "action", "update", "resource", "settings", "result", "failed", "model", settings.Model, "error", err)
 		return fmt.Errorf("set model: %w", err)
 	}
 	if err := s.repo.Set(ctx, keyAIEndpoint, settings.Endpoint); err != nil {
+		logger.Warn("ai settings update endpoint failed", "module", "service", "action", "update", "resource", "settings", "result", "failed", "endpoint", settings.Endpoint, "error", err)
 		return fmt.Errorf("set endpoint: %w", err)
 	}
 	thinkingVal := "false"
@@ -190,15 +195,19 @@ func (s *settingsService) SetAISettings(ctx context.Context, settings *AISetting
 		thinkingVal = "true"
 	}
 	if err := s.repo.Set(ctx, keyAIThinking, thinkingVal); err != nil {
+		logger.Warn("ai settings update thinking failed", "module", "service", "action", "update", "resource", "settings", "result", "failed", "error", err)
 		return fmt.Errorf("set thinking: %w", err)
 	}
 	if err := s.repo.Set(ctx, keyAIThinkingBudget, fmt.Sprintf("%d", settings.ThinkingBudget)); err != nil {
+		logger.Warn("ai settings update thinking budget failed", "module", "service", "action", "update", "resource", "settings", "result", "failed", "error", err)
 		return fmt.Errorf("set thinking budget: %w", err)
 	}
 	if err := s.repo.Set(ctx, keyAIReasoningEffort, settings.ReasoningEffort); err != nil {
+		logger.Warn("ai settings update reasoning effort failed", "module", "service", "action", "update", "resource", "settings", "result", "failed", "error", err)
 		return fmt.Errorf("set reasoning effort: %w", err)
 	}
 	if err := s.repo.Set(ctx, keyAISummaryLanguage, settings.SummaryLanguage); err != nil {
+		logger.Warn("ai settings update summary language failed", "module", "service", "action", "update", "resource", "settings", "result", "failed", "error", err)
 		return fmt.Errorf("set summary language: %w", err)
 	}
 	autoTranslateVal := "false"
@@ -206,6 +215,7 @@ func (s *settingsService) SetAISettings(ctx context.Context, settings *AISetting
 		autoTranslateVal = "true"
 	}
 	if err := s.repo.Set(ctx, keyAIAutoTranslate, autoTranslateVal); err != nil {
+		logger.Warn("ai settings update auto translate failed", "module", "service", "action", "update", "resource", "settings", "result", "failed", "error", err)
 		return fmt.Errorf("set auto translate: %w", err)
 	}
 	autoSummaryVal := "false"
@@ -213,6 +223,7 @@ func (s *settingsService) SetAISettings(ctx context.Context, settings *AISetting
 		autoSummaryVal = "true"
 	}
 	if err := s.repo.Set(ctx, keyAIAutoSummary, autoSummaryVal); err != nil {
+		logger.Warn("ai settings update auto summary failed", "module", "service", "action", "update", "resource", "settings", "result", "failed", "error", err)
 		return fmt.Errorf("set auto summary: %w", err)
 	}
 	// Set rate limit and update limiter
@@ -221,11 +232,13 @@ func (s *settingsService) SetAISettings(ctx context.Context, settings *AISetting
 		rateLimit = ai.DefaultRateLimit
 	}
 	if err := s.repo.Set(ctx, keyAIRateLimit, fmt.Sprintf("%d", rateLimit)); err != nil {
+		logger.Warn("ai settings update rate limit failed", "module", "service", "action", "update", "resource", "settings", "result", "failed", "error", err)
 		return fmt.Errorf("set rate limit: %w", err)
 	}
 	if s.rateLimiter != nil {
 		s.rateLimiter.SetLimit(rateLimit)
 	}
+	logger.Info("ai settings updated", "module", "service", "action", "update", "resource", "settings", "result", "ok", "provider", settings.Provider, "model", settings.Model, "endpoint", settings.Endpoint, "rate_limit", rateLimit)
 	return nil
 }
 
@@ -290,10 +303,18 @@ func (s *settingsService) TestAI(ctx context.Context, provider, apiKey, baseURL,
 
 	p, err := ai.NewProvider(cfg)
 	if err != nil {
+		logger.Warn("ai settings test create provider failed", "module", "service", "action", "test", "resource", "settings", "result", "failed", "provider", provider, "model", model, "error", err)
 		return "", err
 	}
 
-	return p.Test(ctx)
+	response, err := p.Test(ctx)
+	if err != nil {
+		logger.Warn("ai settings test failed", "module", "service", "action", "test", "resource", "settings", "result", "failed", "provider", provider, "model", model, "error", err)
+		return "", err
+	}
+
+	logger.Info("ai settings test ok", "module", "service", "action", "test", "resource", "settings", "result", "ok", "provider", provider, "model", model)
+	return response, nil
 }
 
 // getString gets a plain string value from settings.
@@ -349,6 +370,7 @@ func (s *settingsService) GetGeneralSettings(ctx context.Context) (*GeneralSetti
 // SetGeneralSettings updates the general settings.
 func (s *settingsService) SetGeneralSettings(ctx context.Context, settings *GeneralSettings) error {
 	if err := s.repo.Set(ctx, keyFallbackUserAgent, settings.FallbackUserAgent); err != nil {
+		logger.Warn("general settings update fallback ua failed", "module", "service", "action", "update", "resource", "settings", "result", "failed", "error", err)
 		return fmt.Errorf("set fallback user agent: %w", err)
 	}
 	autoReadabilityVal := "false"
@@ -356,8 +378,10 @@ func (s *settingsService) SetGeneralSettings(ctx context.Context, settings *Gene
 		autoReadabilityVal = "true"
 	}
 	if err := s.repo.Set(ctx, keyAutoReadability, autoReadabilityVal); err != nil {
+		logger.Warn("general settings update auto readability failed", "module", "service", "action", "update", "resource", "settings", "result", "failed", "error", err)
 		return fmt.Errorf("set auto readability: %w", err)
 	}
+	logger.Info("general settings updated", "module", "service", "action", "update", "resource", "settings", "result", "ok", "auto_readability", settings.AutoReadability)
 	return nil
 }
 
@@ -373,7 +397,13 @@ func (s *settingsService) GetFallbackUserAgent(ctx context.Context) string {
 
 // ClearAnubisCookies deletes all Anubis cookies from settings.
 func (s *settingsService) ClearAnubisCookies(ctx context.Context) (int64, error) {
-	return s.repo.DeleteByPrefix(ctx, "anubis.cookie.")
+	deleted, err := s.repo.DeleteByPrefix(ctx, "anubis.cookie.")
+	if err != nil {
+		logger.Warn("anubis cookies clear failed", "module", "service", "action", "clear", "resource", "settings", "result", "failed", "error", err)
+		return 0, err
+	}
+	logger.Info("anubis cookies cleared", "module", "service", "action", "clear", "resource", "settings", "result", "ok", "count", deleted)
+	return deleted, nil
 }
 
 // GetNetworkSettings returns the network proxy configuration.
@@ -413,29 +443,35 @@ func (s *settingsService) SetNetworkSettings(ctx context.Context, settings *Netw
 		enabledVal = "true"
 	}
 	if err := s.repo.Set(ctx, keyNetworkEnabled, enabledVal); err != nil {
+		logger.Warn("network settings update enabled failed", "module", "service", "action", "update", "resource", "settings", "result", "failed", "error", err)
 		return fmt.Errorf("set network enabled: %w", err)
 	}
 
 	if settings.Type != "" {
 		if err := s.repo.Set(ctx, keyNetworkType, settings.Type); err != nil {
+			logger.Warn("network settings update type failed", "module", "service", "action", "update", "resource", "settings", "result", "failed", "error", err)
 			return fmt.Errorf("set network type: %w", err)
 		}
 	}
 
 	if err := s.repo.Set(ctx, keyNetworkHost, settings.Host); err != nil {
+		logger.Warn("network settings update host failed", "module", "service", "action", "update", "resource", "settings", "result", "failed", "error", err)
 		return fmt.Errorf("set network host: %w", err)
 	}
 
 	if err := s.repo.Set(ctx, keyNetworkPort, fmt.Sprintf("%d", settings.Port)); err != nil {
+		logger.Warn("network settings update port failed", "module", "service", "action", "update", "resource", "settings", "result", "failed", "error", err)
 		return fmt.Errorf("set network port: %w", err)
 	}
 
 	if err := s.repo.Set(ctx, keyNetworkUsername, settings.Username); err != nil {
+		logger.Warn("network settings update username failed", "module", "service", "action", "update", "resource", "settings", "result", "failed", "error", err)
 		return fmt.Errorf("set network username: %w", err)
 	}
 
 	// Only update password if it's not masked
 	if err := s.setAPIKey(ctx, keyNetworkPassword, settings.Password); err != nil {
+		logger.Warn("network settings update password failed", "module", "service", "action", "update", "resource", "settings", "result", "failed", "error", err)
 		return fmt.Errorf("set network password: %w", err)
 	}
 
@@ -445,9 +481,11 @@ func (s *settingsService) SetNetworkSettings(ctx context.Context, settings *Netw
 		ipStack = "default"
 	}
 	if err := s.repo.Set(ctx, keyNetworkIPStack, ipStack); err != nil {
+		logger.Warn("network settings update ip stack failed", "module", "service", "action", "update", "resource", "settings", "result", "failed", "error", err)
 		return fmt.Errorf("set ip stack: %w", err)
 	}
 
+	logger.Info("network settings updated", "module", "service", "action", "update", "resource", "settings", "result", "ok", "enabled", settings.Enabled, "type", settings.Type, "ip_stack", ipStack)
 	return nil
 }
 

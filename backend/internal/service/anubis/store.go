@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"gist/backend/internal/logger"
 	"gist/backend/internal/repository"
 )
 
@@ -36,6 +37,7 @@ func (s *Store) GetCookie(ctx context.Context, host string) (string, error) {
 	expiresKey := cookieKeyPrefix + host + expiresSuffix
 	expiresSetting, err := s.settings.Get(ctx, expiresKey)
 	if err != nil {
+		logger.Warn("anubis cookie expires read failed", "module", "service", "action", "fetch", "resource", "settings", "result", "failed", "host", host, "error", err)
 		return "", fmt.Errorf("get expires: %w", err)
 	}
 	if expiresSetting == nil {
@@ -58,6 +60,7 @@ func (s *Store) GetCookie(ctx context.Context, host string) (string, error) {
 	cookieKey := cookieKeyPrefix + host
 	cookieSetting, err := s.settings.Get(ctx, cookieKey)
 	if err != nil {
+		logger.Warn("anubis cookie read failed", "module", "service", "action", "fetch", "resource", "settings", "result", "failed", "host", host, "error", err)
 		return "", fmt.Errorf("get cookie: %w", err)
 	}
 	if cookieSetting == nil {
@@ -76,12 +79,14 @@ func (s *Store) SetCookie(ctx context.Context, host, cookie string, expiresAt ti
 	// Store the cookie value
 	cookieKey := cookieKeyPrefix + host
 	if err := s.settings.Set(ctx, cookieKey, cookie); err != nil {
+		logger.Warn("anubis cookie save failed", "module", "service", "action", "save", "resource", "settings", "result", "failed", "host", host, "error", err)
 		return fmt.Errorf("set cookie: %w", err)
 	}
 
 	// Store the expiration time
 	expiresKey := cookieKeyPrefix + host + expiresSuffix
 	if err := s.settings.Set(ctx, expiresKey, expiresAt.UTC().Format(time.RFC3339)); err != nil {
+		logger.Warn("anubis cookie expires save failed", "module", "service", "action", "save", "resource", "settings", "result", "failed", "host", host, "error", err)
 		return fmt.Errorf("set expires: %w", err)
 	}
 
@@ -98,9 +103,11 @@ func (s *Store) DeleteCookie(ctx context.Context, host string) error {
 	expiresKey := cookieKeyPrefix + host + expiresSuffix
 
 	if err := s.settings.Delete(ctx, cookieKey); err != nil {
+		logger.Warn("anubis cookie delete failed", "module", "service", "action", "delete", "resource", "settings", "result", "failed", "host", host, "error", err)
 		return fmt.Errorf("delete cookie: %w", err)
 	}
 	if err := s.settings.Delete(ctx, expiresKey); err != nil {
+		logger.Warn("anubis cookie expires delete failed", "module", "service", "action", "delete", "resource", "settings", "result", "failed", "host", host, "error", err)
 		return fmt.Errorf("delete expires: %w", err)
 	}
 

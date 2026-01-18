@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"gist/backend/internal/logger"
 	"gist/backend/internal/model"
 	"gist/backend/internal/repository"
 )
@@ -100,15 +101,31 @@ func (s *domainRateLimitService) SetInterval(ctx context.Context, host string, s
 	}
 
 	if existing != nil {
-		return s.repo.Update(ctx, host, seconds)
+		err := s.repo.Update(ctx, host, seconds)
+		if err != nil {
+			logger.Error("domain rate limit update failed", "module", "service", "action", "update", "resource", "domain_rate_limit", "result", "failed", "host", host, "error", err)
+			return err
+		}
+		logger.Info("domain rate limit updated", "module", "service", "action", "update", "resource", "domain_rate_limit", "result", "ok", "host", host, "interval_seconds", seconds)
+		return nil
 	}
 	_, err = s.repo.Create(ctx, host, seconds)
-	return err
+	if err != nil {
+		logger.Error("domain rate limit create failed", "module", "service", "action", "create", "resource", "domain_rate_limit", "result", "failed", "host", host, "error", err)
+		return err
+	}
+	logger.Info("domain rate limit created", "module", "service", "action", "create", "resource", "domain_rate_limit", "result", "ok", "host", host, "interval_seconds", seconds)
+	return nil
 }
 
 // DeleteInterval removes the interval configuration for a host.
 func (s *domainRateLimitService) DeleteInterval(ctx context.Context, host string) error {
-	return s.repo.Delete(ctx, host)
+	if err := s.repo.Delete(ctx, host); err != nil {
+		logger.Error("domain rate limit delete failed", "module", "service", "action", "delete", "resource", "domain_rate_limit", "result", "failed", "host", host, "error", err)
+		return err
+	}
+	logger.Info("domain rate limit deleted", "module", "service", "action", "delete", "resource", "domain_rate_limit", "result", "ok", "host", host)
+	return nil
 }
 
 // List returns all configured domain rate limits.

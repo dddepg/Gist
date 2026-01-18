@@ -122,14 +122,14 @@ func (s *refreshService) processParsedFeed(ctx context.Context, feed model.Feed,
 			feed.LastModified = &newLastModified
 		}
 		if _, err := s.feeds.Update(ctx, feed); err != nil {
-			logger.Warn("update feed etag", "feedID", feed.ID, "error", err)
+			logger.Warn("update feed etag failed", "module", "service", "action", "update", "resource", "feed", "result", "failed", "feed_id", feed.ID, "feed_title", feed.Title, "error", err)
 		}
 	}
 
 	// Save entries
 	newCount, updatedCount := s.saveEntries(ctx, feed.ID, parsed.Items)
 	if newCount > 0 || updatedCount > 0 {
-		logger.Info("feed refreshed", "feedID", feed.ID, "title", feed.Title, "new", newCount, "updated", updatedCount)
+		logger.Info("feed refreshed", "module", "service", "action", "refresh", "resource", "feed", "result", "ok", "feed_id", feed.ID, "feed_title", feed.Title, "new", newCount, "updated", updatedCount)
 	}
 
 	// Backfill siteURL if empty (for feeds added before siteURL was implemented)
@@ -171,12 +171,12 @@ func (s *refreshService) saveEntries(ctx context.Context, feedID int64, items []
 
 		exists, err := s.entries.ExistsByURL(ctx, feedID, *entry.URL)
 		if err != nil {
-			logger.Warn("check entry exists", "error", err)
+			logger.Warn("check entry exists failed", "module", "service", "action", "list", "resource", "entry", "result", "failed", "error", err)
 			continue
 		}
 
 		if err := s.entries.CreateOrUpdate(ctx, entry); err != nil {
-			logger.Warn("save entry", "error", err)
+			logger.Warn("save entry failed", "module", "service", "action", "save", "resource", "entry", "result", "failed", "error", err)
 			continue
 		}
 
@@ -239,10 +239,13 @@ func (s *refreshService) RefreshAll(ctx context.Context) error {
 
 	feeds, err := s.feeds.List(ctx, nil)
 	if err != nil {
+		logger.Error("refresh list feeds", "module", "service", "action", "list", "resource", "feed", "result", "failed", "error", err)
 		return err
 	}
 
+	logger.Info("refresh started", "module", "service", "action", "refresh", "resource", "feed", "result", "ok", "count", len(feeds))
 	s.refreshFeedsWithRateLimit(ctx, feeds)
+	logger.Info("refresh completed", "module", "service", "action", "refresh", "resource", "feed", "result", "ok", "count", len(feeds))
 	return nil
 }
 
@@ -268,7 +271,7 @@ func (s *refreshService) RefreshFeeds(ctx context.Context, feedIDs []int64) erro
 	// Get all feeds by IDs in a single query
 	feeds, err := s.feeds.GetByIDs(ctx, feedIDs)
 	if err != nil {
-		logger.Error("get feeds by ids", "error", err)
+		logger.Error("get feeds by ids", "module", "service", "action", "list", "resource", "feed", "result", "failed", "error", err)
 		return err
 	}
 
@@ -302,16 +305,19 @@ func (s *refreshService) refreshFeedsWithRateLimit(ctx context.Context, feeds []
 
 			if host != "" {
 				if err := hl.acquireSemaphore(ctx, host); err != nil {
+					logger.Debug("refresh host acquire cancelled", "module", "service", "action", "refresh", "resource", "feed", "result", "cancelled", "host", host, "error", err)
 					return
 				}
 				defer hl.releaseSemaphore(host)
 
 				if err := hl.waitForInterval(ctx, host); err != nil {
+					logger.Debug("refresh host wait cancelled", "module", "service", "action", "refresh", "resource", "feed", "result", "cancelled", "host", host, "error", err)
 					return
 				}
 			}
 
 			if err := globalSem.Acquire(ctx, 1); err != nil {
+				logger.Debug("refresh global acquire cancelled", "module", "service", "action", "refresh", "resource", "feed", "result", "cancelled", "host", host, "error", err)
 				return
 			}
 			defer globalSem.Release(1)
@@ -321,7 +327,7 @@ func (s *refreshService) refreshFeedsWithRateLimit(ctx context.Context, feeds []
 			}
 
 			if err := s.refreshFeedInternal(ctx, feed); err != nil {
-				logger.Warn("refresh feed", "feedID", feed.ID, "title", feed.Title, "error", err)
+				logger.Error("refresh feed failed", "module", "service", "action", "refresh", "resource", "feed", "result", "failed", "feed_id", feed.ID, "feed_title", feed.Title, "error", err)
 			}
 		}()
 	}
@@ -376,7 +382,7 @@ func (s *refreshService) refreshFeedWithCookie(ctx context.Context, feed model.F
 
 	// Not modified, skip parsing but clear any previous error
 	if resp.StatusCode == http.StatusNotModified {
-		logger.Debug("feed not modified", "feedID", feed.ID, "title", feed.Title)
+		logger.Debug("feed not modified", "module", "service", "action", "refresh", "resource", "feed", "result", "skipped", "feed_id", feed.ID, "host", network.ExtractHost(feed.URL))
 		_ = s.feeds.UpdateErrorMessage(ctx, feed.ID, nil)
 		return nil
 	}
@@ -385,13 +391,13 @@ func (s *refreshService) refreshFeedWithCookie(ctx context.Context, feed model.F
 	if resp.StatusCode >= http.StatusBadRequest && allowFallback && s.settings != nil {
 		fallbackUA := s.settings.GetFallbackUserAgent(ctx)
 		if fallbackUA != "" {
-			logger.Info("retrying with fallback UA", "feedID", feed.ID, "title", feed.Title, "statusCode", resp.StatusCode)
+			logger.Warn("retrying with fallback ua", "module", "service", "action", "refresh", "resource", "feed", "result", "failed", "feed_id", feed.ID, "feed_title", feed.Title, "status_code", resp.StatusCode)
 			return s.refreshFeedWithCookie(ctx, feed, fallbackUA, cookie, false, retryCount)
 		}
 	}
 
 	if resp.StatusCode >= http.StatusBadRequest {
-		logger.Info("feed HTTP error", "feedID", feed.ID, "title", feed.Title, "statusCode", resp.StatusCode)
+		logger.Error("feed http error", "module", "service", "action", "refresh", "resource", "feed", "result", "failed", "feed_id", feed.ID, "feed_title", feed.Title, "status_code", resp.StatusCode)
 		errMsg := fmt.Sprintf("HTTP %d", resp.StatusCode)
 		_ = s.feeds.UpdateErrorMessage(ctx, feed.ID, &errMsg)
 		return nil
@@ -464,7 +470,7 @@ func (s *refreshService) refreshFeedWithFreshClient(ctx context.Context, feed mo
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= http.StatusBadRequest {
-		logger.Info("feed HTTP error", "feedID", feed.ID, "title", feed.Title, "statusCode", resp.StatusCode)
+		logger.Error("feed http error", "module", "service", "action", "refresh", "resource", "feed", "result", "failed", "feed_id", feed.ID, "feed_title", feed.Title, "status_code", resp.StatusCode)
 		errMsg := fmt.Sprintf("HTTP %d", resp.StatusCode)
 		_ = s.feeds.UpdateErrorMessage(ctx, feed.ID, &errMsg)
 		return nil
@@ -472,6 +478,7 @@ func (s *refreshService) refreshFeedWithFreshClient(ctx context.Context, feed mo
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
+		logger.Error("feed refresh read failed", "module", "service", "action", "refresh", "resource", "feed", "result", "failed", "feed_id", feed.ID, "feed_title", feed.Title, "error", err)
 		errMsg := err.Error()
 		_ = s.feeds.UpdateErrorMessage(ctx, feed.ID, &errMsg)
 		return err

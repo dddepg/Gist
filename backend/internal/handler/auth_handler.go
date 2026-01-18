@@ -6,6 +6,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 
+	"gist/backend/internal/logger"
 	"gist/backend/internal/service"
 )
 
@@ -87,7 +88,7 @@ func (h *AuthHandler) RegisterProtectedRoutes(g *echo.Group) {
 func (h *AuthHandler) GetStatus(c echo.Context) error {
 	exists, err := h.service.CheckUserExists(c.Request().Context())
 	if err != nil {
-		c.Logger().Error(err)
+		logger.Error("auth status check failed", "module", "handler", "action", "list", "resource", "auth", "result", "failed", "error", err)
 		return c.JSON(http.StatusInternalServerError, errorResponse{Error: "failed to check status"})
 	}
 
@@ -109,17 +110,20 @@ func (h *AuthHandler) GetStatus(c echo.Context) error {
 func (h *AuthHandler) Register(c echo.Context) error {
 	var req registerRequest
 	if err := c.Bind(&req); err != nil {
+		logger.Warn("auth request invalid", "module", "handler", "action", "create", "resource", "auth", "result", "failed", "error", err)
 		return c.JSON(http.StatusBadRequest, errorResponse{Error: "invalid request"})
 	}
 
 	resp, err := h.service.Register(c.Request().Context(), req.Username, req.Nickname, req.Email, req.Password)
 	if err != nil {
+		logger.Warn("auth register failed", "module", "handler", "action", "create", "resource", "auth", "result", "failed", "actor", req.Username, "error", err)
 		return h.handleAuthError(c, err)
 	}
 
 	// Set auth cookie for browser resource requests (images, etc.)
 	setAuthCookie(c, resp.Token)
 
+	logger.Info("auth register", "module", "handler", "action", "create", "resource", "auth", "result", "ok", "actor", resp.User.Username)
 	return c.JSON(http.StatusOK, authResponse{
 		Token: resp.Token,
 		User:  toUserResponse(resp.User),
@@ -141,17 +145,20 @@ func (h *AuthHandler) Register(c echo.Context) error {
 func (h *AuthHandler) Login(c echo.Context) error {
 	var req loginRequest
 	if err := c.Bind(&req); err != nil {
+		logger.Warn("auth request invalid", "module", "handler", "action", "login", "resource", "auth", "result", "failed", "error", err)
 		return c.JSON(http.StatusBadRequest, errorResponse{Error: "invalid request"})
 	}
 
 	resp, err := h.service.Login(c.Request().Context(), req.Identifier, req.Password)
 	if err != nil {
+		logger.Warn("auth login failed", "module", "handler", "action", "login", "resource", "auth", "result", "failed", "actor", req.Identifier, "error", err)
 		return h.handleAuthError(c, err)
 	}
 
 	// Set auth cookie for browser resource requests (images, etc.)
 	setAuthCookie(c, resp.Token)
 
+	logger.Info("auth login", "module", "handler", "action", "login", "resource", "auth", "result", "ok", "actor", resp.User.Username)
 	return c.JSON(http.StatusOK, authResponse{
 		Token: resp.Token,
 		User:  toUserResponse(resp.User),
@@ -172,12 +179,14 @@ func (h *AuthHandler) GetCurrentUser(c echo.Context) error {
 	user, err := h.service.GetCurrentUser(c.Request().Context())
 	if err != nil {
 		if errors.Is(err, service.ErrUserNotFound) {
+			logger.Warn("auth me not authenticated", "module", "handler", "action", "list", "resource", "auth", "result", "failed")
 			return c.JSON(http.StatusUnauthorized, errorResponse{Error: "not authenticated"})
 		}
-		c.Logger().Error(err)
+		logger.Error("auth me failed", "module", "handler", "action", "list", "resource", "auth", "result", "failed", "error", err)
 		return c.JSON(http.StatusInternalServerError, errorResponse{Error: "failed to get user"})
 	}
 
+	logger.Debug("auth me", "module", "handler", "action", "list", "resource", "auth", "result", "ok", "actor", user.Username)
 	return c.JSON(http.StatusOK, toUserResponse(user))
 }
 
@@ -197,11 +206,13 @@ func (h *AuthHandler) GetCurrentUser(c echo.Context) error {
 func (h *AuthHandler) UpdateProfile(c echo.Context) error {
 	var req updateProfileRequest
 	if err := c.Bind(&req); err != nil {
+		logger.Warn("auth request invalid", "module", "handler", "action", "update", "resource", "auth", "result", "failed", "error", err)
 		return c.JSON(http.StatusBadRequest, errorResponse{Error: "invalid request"})
 	}
 
 	result, err := h.service.UpdateProfile(c.Request().Context(), req.Nickname, req.Email, req.CurrentPassword, req.NewPassword)
 	if err != nil {
+		logger.Warn("auth profile update failed", "module", "handler", "action", "update", "resource", "auth", "result", "failed", "error", err)
 		return h.handleAuthError(c, err)
 	}
 
@@ -210,6 +221,7 @@ func (h *AuthHandler) UpdateProfile(c echo.Context) error {
 		setAuthCookie(c, *result.Token)
 	}
 
+	logger.Info("auth profile updated", "module", "handler", "action", "update", "resource", "auth", "result", "ok", "actor", result.User.Username)
 	return c.JSON(http.StatusOK, updateProfileResponse{
 		User:  toUserResponse(result.User),
 		Token: result.Token,
@@ -226,6 +238,7 @@ func (h *AuthHandler) UpdateProfile(c echo.Context) error {
 // @Router /auth/logout [post]
 func (h *AuthHandler) Logout(c echo.Context) error {
 	clearAuthCookie(c)
+	logger.Info("auth logout", "module", "handler", "action", "logout", "resource", "auth", "result", "ok")
 	return c.JSON(http.StatusOK, map[string]string{"message": "logged out"})
 }
 
@@ -252,7 +265,7 @@ func (h *AuthHandler) handleAuthError(c echo.Context, err error) error {
 	case errors.Is(err, service.ErrSamePassword):
 		return c.JSON(http.StatusBadRequest, errorResponse{Error: "new password must be different from current password"})
 	default:
-		c.Logger().Error(err)
+		logger.Error("auth request failed", "module", "handler", "action", "request", "resource", "auth", "result", "failed", "error", err)
 		return c.JSON(http.StatusInternalServerError, errorResponse{Error: "internal error"})
 	}
 }

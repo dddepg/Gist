@@ -81,6 +81,7 @@ func (s *feedService) Add(ctx context.Context, feedURL string, folderID *int64, 
 
 	fetched, fetchErr := s.fetchFeed(ctx, trimmedURL)
 	if fetchErr != nil {
+		logger.Warn("feed fetch failed", "module", "service", "action", "fetch", "resource", "feed", "result", "failed", "host", network.ExtractHost(trimmedURL), "error", fetchErr)
 		// Fetch failed, create feed with error message
 		finalTitle := strings.TrimSpace(titleOverride)
 		if finalTitle == "" {
@@ -118,8 +119,11 @@ func (s *feedService) Add(ctx context.Context, feedURL string, folderID *int64, 
 
 	created, err := s.feeds.Create(ctx, feed)
 	if err != nil {
+		logger.Error("feed create failed", "module", "service", "action", "create", "resource", "feed", "result", "failed", "host", network.ExtractHost(trimmedURL), "error", err)
 		return model.Feed{}, err
 	}
+
+	logger.Info("feed created", "module", "service", "action", "create", "resource", "feed", "result", "ok", "feed_id", created.ID, "feed_title", created.Title, "host", network.ExtractHost(created.URL))
 
 	// Download and save icon
 	if s.icons != nil {
@@ -144,7 +148,7 @@ func (s *feedService) Add(ctx context.Context, feedURL string, folderID *int64, 
 			continue
 		}
 		if err := s.entries.CreateOrUpdate(ctx, entry); err != nil {
-			logger.Warn("create entry failed", "feedID", created.ID, "url", *entry.URL, "error", err)
+			logger.Warn("entry create failed", "module", "service", "action", "create", "resource", "entry", "result", "failed", "feed_id", created.ID, "feed_title", created.Title, "host", network.ExtractHost(*entry.URL), "error", err)
 		}
 	}
 
@@ -186,9 +190,11 @@ func (s *feedService) AddWithoutFetch(ctx context.Context, feedURL string, folde
 
 	created, err := s.feeds.Create(ctx, feed)
 	if err != nil {
+		logger.Error("feed create without fetch failed", "module", "service", "action", "create", "resource", "feed", "result", "failed", "host", network.ExtractHost(trimmedURL), "error", err)
 		return model.Feed{}, false, err
 	}
 
+	logger.Info("feed created without fetch", "module", "service", "action", "create", "resource", "feed", "result", "ok", "feed_id", created.ID, "feed_title", created.Title, "host", network.ExtractHost(created.URL))
 	return created, true, nil
 }
 
@@ -200,8 +206,11 @@ func (s *feedService) Preview(ctx context.Context, feedURL string) (FeedPreview,
 
 	fetched, err := s.fetchFeed(ctx, trimmedURL)
 	if err != nil {
+		logger.Warn("feed preview failed", "module", "service", "action", "fetch", "resource", "feed", "result", "failed", "host", network.ExtractHost(trimmedURL), "error", err)
 		return FeedPreview{}, err
 	}
+
+	logger.Debug("feed preview fetched", "module", "service", "action", "fetch", "resource", "feed", "result", "ok", "host", network.ExtractHost(trimmedURL))
 
 	title := strings.TrimSpace(fetched.title)
 	if title == "" {
@@ -221,7 +230,12 @@ func (s *feedService) Preview(ctx context.Context, feedURL string) (FeedPreview,
 }
 
 func (s *feedService) List(ctx context.Context, folderID *int64) ([]model.Feed, error) {
-	return s.feeds.List(ctx, folderID)
+	feeds, err := s.feeds.List(ctx, folderID)
+	if err != nil {
+		logger.Error("feed list failed", "module", "service", "action", "list", "resource", "feed", "result", "failed", "folder_id", folderID, "error", err)
+		return nil, err
+	}
+	return feeds, nil
 }
 
 func (s *feedService) Update(ctx context.Context, id int64, title string, folderID *int64) (model.Feed, error) {
@@ -248,7 +262,13 @@ func (s *feedService) Update(ctx context.Context, id int64, title string, folder
 	feed.Title = trimmedTitle
 	feed.FolderID = folderID
 
-	return s.feeds.Update(ctx, feed)
+	updated, err := s.feeds.Update(ctx, feed)
+	if err != nil {
+		logger.Error("feed update failed", "module", "service", "action", "update", "resource", "feed", "result", "failed", "feed_id", id, "error", err)
+		return model.Feed{}, err
+	}
+	logger.Info("feed updated", "module", "service", "action", "update", "resource", "feed", "result", "ok", "feed_id", updated.ID, "feed_title", updated.Title)
+	return updated, nil
 }
 
 func (s *feedService) Delete(ctx context.Context, id int64) error {
@@ -258,7 +278,12 @@ func (s *feedService) Delete(ctx context.Context, id int64) error {
 		}
 		return fmt.Errorf("get feed: %w", err)
 	}
-	return s.feeds.Delete(ctx, id)
+	if err := s.feeds.Delete(ctx, id); err != nil {
+		logger.Error("feed delete failed", "module", "service", "action", "delete", "resource", "feed", "result", "failed", "feed_id", id, "error", err)
+		return err
+	}
+	logger.Info("feed deleted", "module", "service", "action", "delete", "resource", "feed", "result", "ok", "feed_id", id)
+	return nil
 }
 
 func (s *feedService) UpdateType(ctx context.Context, id int64, feedType string) error {
@@ -268,7 +293,12 @@ func (s *feedService) UpdateType(ctx context.Context, id int64, feedType string)
 		}
 		return fmt.Errorf("get feed: %w", err)
 	}
-	return s.feeds.UpdateType(ctx, id, feedType)
+	if err := s.feeds.UpdateType(ctx, id, feedType); err != nil {
+		logger.Error("feed update type failed", "module", "service", "action", "update", "resource", "feed", "result", "failed", "feed_id", id, "type", feedType, "error", err)
+		return err
+	}
+	logger.Info("feed type updated", "module", "service", "action", "update", "resource", "feed", "result", "ok", "feed_id", id, "type", feedType)
+	return nil
 }
 
 func (s *feedService) DeleteBatch(ctx context.Context, ids []int64) error {
@@ -278,11 +308,14 @@ func (s *feedService) DeleteBatch(ctx context.Context, ids []int64) error {
 	// Delete and check affected rows to detect missing IDs
 	affected, err := s.feeds.DeleteBatch(ctx, ids)
 	if err != nil {
+		logger.Error("feed batch delete failed", "module", "service", "action", "delete", "resource", "feed", "result", "failed", "count", len(ids), "error", err)
 		return err
 	}
 	if affected != int64(len(ids)) {
+		logger.Warn("feed batch delete missing", "module", "service", "action", "delete", "resource", "feed", "result", "failed", "count", len(ids), "affected", affected)
 		return ErrNotFound
 	}
+	logger.Info("feed batch deleted", "module", "service", "action", "delete", "resource", "feed", "result", "ok", "count", len(ids))
 	return nil
 }
 
@@ -327,6 +360,7 @@ func (s *feedService) fetchFeedWithCookie(ctx context.Context, feedURL string, u
 	httpClient := s.clientFactory.NewHTTPClient(ctx, feedTimeout)
 	resp, err := httpClient.Do(req)
 	if err != nil {
+		logger.Warn("feed preview fetch failed", "module", "service", "action", "fetch", "resource", "feed", "result", "failed", "host", network.ExtractHost(feedURL), "error", err)
 		return feedFetch{}, ErrFeedFetch
 	}
 	defer resp.Body.Close()
@@ -335,17 +369,20 @@ func (s *feedService) fetchFeedWithCookie(ctx context.Context, feedURL string, u
 	if resp.StatusCode >= http.StatusBadRequest && allowFallback && s.settings != nil {
 		fallbackUA := s.settings.GetFallbackUserAgent(ctx)
 		if fallbackUA != "" {
+			logger.Warn("feed preview retry with fallback ua", "module", "service", "action", "fetch", "resource", "feed", "result", "failed", "host", network.ExtractHost(feedURL), "status_code", resp.StatusCode)
 			return s.fetchFeedWithCookie(ctx, feedURL, fallbackUA, cookie, false, retryCount)
 		}
 	}
 
 	if resp.StatusCode >= http.StatusBadRequest {
+		logger.Error("feed preview http error", "module", "service", "action", "fetch", "resource", "feed", "result", "failed", "host", network.ExtractHost(feedURL), "status_code", resp.StatusCode)
 		return feedFetch{}, ErrFeedFetch
 	}
 
 	// Read body into memory for Anubis detection and RSS parsing
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
+		logger.Warn("feed preview read failed", "module", "service", "action", "fetch", "resource", "feed", "result", "failed", "host", network.ExtractHost(feedURL), "error", err)
 		return feedFetch{}, ErrFeedFetch
 	}
 
@@ -357,21 +394,26 @@ func (s *feedService) fetchFeedWithCookie(ctx context.Context, feedURL string, u
 		if s.anubis != nil && anubis.IsAnubisPage(body) {
 			// Check if it's a rejection (not solvable)
 			if !anubis.IsAnubisChallenge(body) {
+				logger.Warn("feed preview upstream rejected", "module", "service", "action", "fetch", "resource", "feed", "result", "failed", "host", network.ExtractHost(feedURL))
 				return feedFetch{}, fmt.Errorf("upstream rejected")
 			}
 			// It's a solvable challenge
 			if retryCount >= 2 {
 				// Too many retries, give up
+				logger.Warn("feed preview anubis persists", "module", "service", "action", "fetch", "resource", "feed", "result", "failed", "host", network.ExtractHost(feedURL), "retry_count", retryCount)
 				return feedFetch{}, fmt.Errorf("anubis challenge persists after %d retries", retryCount)
 			}
 			newCookie, solveErr := s.anubis.SolveFromBody(ctx, body, feedURL, resp.Cookies())
 			if solveErr != nil {
+				logger.Warn("feed preview anubis solve failed", "module", "service", "action", "fetch", "resource", "feed", "result", "failed", "host", network.ExtractHost(feedURL), "error", solveErr)
 				return feedFetch{}, ErrFeedFetch
 			}
 			// Retry with fresh client to avoid connection reuse
 			return s.fetchFeedWithFreshClient(ctx, feedURL, userAgent, newCookie, retryCount+1)
 		}
+		logger.Error("feed preview parse failed", "module", "service", "action", "fetch", "resource", "feed", "result", "failed", "host", network.ExtractHost(feedURL), "error", parseErr)
 		return feedFetch{}, ErrFeedFetch
+
 	}
 
 	title := strings.TrimSpace(parsed.Title)
@@ -424,30 +466,36 @@ func (s *feedService) fetchFeedWithFreshClient(ctx context.Context, feedURL stri
 	freshClient := s.clientFactory.NewHTTPClient(ctx, feedTimeout)
 	resp, err := freshClient.Do(req)
 	if err != nil {
+		logger.Warn("feed preview fetch failed", "module", "service", "action", "fetch", "resource", "feed", "result", "failed", "host", network.ExtractHost(feedURL), "error", err)
 		return feedFetch{}, ErrFeedFetch
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= http.StatusBadRequest {
+		logger.Error("feed preview http error", "module", "service", "action", "fetch", "resource", "feed", "result", "failed", "host", network.ExtractHost(feedURL), "status_code", resp.StatusCode)
 		return feedFetch{}, ErrFeedFetch
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
+		logger.Warn("feed preview read failed", "module", "service", "action", "fetch", "resource", "feed", "result", "failed", "host", network.ExtractHost(feedURL), "error", err)
 		return feedFetch{}, ErrFeedFetch
 	}
 
 	// Check if still getting Anubis (shouldn't happen with fresh connection)
 	if s.anubis != nil && anubis.IsAnubisPage(body) {
 		if !anubis.IsAnubisChallenge(body) {
+			logger.Warn("feed preview upstream rejected", "module", "service", "action", "fetch", "resource", "feed", "result", "failed", "host", network.ExtractHost(feedURL))
 			return feedFetch{}, fmt.Errorf("upstream rejected")
 		}
+		logger.Warn("feed preview anubis persists", "module", "service", "action", "fetch", "resource", "feed", "result", "failed", "host", network.ExtractHost(feedURL), "retry_count", retryCount)
 		return feedFetch{}, fmt.Errorf("anubis challenge persists after %d retries", retryCount)
 	}
 
 	parser := gofeed.NewParser()
 	parsed, parseErr := parser.Parse(bytes.NewReader(body))
 	if parseErr != nil {
+		logger.Error("feed preview parse failed", "module", "service", "action", "fetch", "resource", "feed", "result", "failed", "host", network.ExtractHost(feedURL), "error", parseErr)
 		return feedFetch{}, ErrFeedFetch
 	}
 

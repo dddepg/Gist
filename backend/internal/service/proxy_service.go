@@ -10,6 +10,7 @@ import (
 	"github.com/Noooste/azuretls-client"
 
 	"gist/backend/internal/config"
+	"gist/backend/internal/logger"
 	"gist/backend/internal/network"
 	"gist/backend/internal/service/anubis"
 )
@@ -110,10 +111,12 @@ func (s *proxyService) doFetch(ctx context.Context, session *azuretls.Session, i
 		OrderedHeaders: headers,
 	})
 	if err != nil {
+		logger.Warn("proxy fetch failed", "module", "service", "action", "fetch", "resource", "proxy", "result", "failed", "host", parsedURL.Host, "error", err)
 		return nil, fmt.Errorf("%w: %v", ErrFetchFailed, err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
+		logger.Error("proxy http error", "module", "service", "action", "fetch", "resource", "proxy", "result", "failed", "host", parsedURL.Host, "status_code", resp.StatusCode)
 		return nil, fmt.Errorf("%w: %d", ErrFetchFailed, resp.StatusCode)
 	}
 
@@ -123,14 +126,17 @@ func (s *proxyService) doFetch(ctx context.Context, session *azuretls.Session, i
 	if s.anubis != nil && anubis.IsAnubisPage(data) {
 		// Check if it's a rejection (not a solvable challenge)
 		if !anubis.IsAnubisChallenge(data) {
+			logger.Warn("proxy upstream rejected", "module", "service", "action", "fetch", "resource", "proxy", "result", "failed", "host", parsedURL.Host)
 			return nil, ErrUpstreamRejected
 		}
 		// It's a solvable challenge, try to solve it
 		if retryCount >= 2 {
+			logger.Warn("proxy anubis persists", "module", "service", "action", "fetch", "resource", "proxy", "result", "failed", "host", parsedURL.Host, "retry_count", retryCount)
 			return nil, fmt.Errorf("%w: anubis challenge persists after %d retries", ErrFetchFailed, retryCount)
 		}
 		if isFreshSession {
 			// Fresh session still got Anubis, give up
+			logger.Warn("proxy anubis persists", "module", "service", "action", "fetch", "resource", "proxy", "result", "failed", "host", parsedURL.Host, "retry_count", retryCount)
 			return nil, fmt.Errorf("%w: anubis challenge persists after %d retries", ErrFetchFailed, retryCount)
 		}
 		var initialCookies []*http.Cookie
@@ -139,6 +145,7 @@ func (s *proxyService) doFetch(ctx context.Context, session *azuretls.Session, i
 		}
 		newCookie, solveErr := s.anubis.SolveFromBody(ctx, data, imageURL, initialCookies)
 		if solveErr != nil {
+			logger.Warn("proxy anubis solve failed", "module", "service", "action", "fetch", "resource", "proxy", "result", "failed", "host", parsedURL.Host, "error", solveErr)
 			return nil, ErrFetchFailed
 		}
 		return s.fetchWithFreshSession(ctx, imageURL, refererURL, newCookie, retryCount+1)

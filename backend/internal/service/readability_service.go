@@ -64,6 +64,7 @@ func (s *readabilityService) FetchReadableContent(ctx context.Context, entryID i
 
 	// Return cached content if available
 	if entry.ReadableContent != nil && *entry.ReadableContent != "" {
+		logger.Debug("readability cache hit", "module", "service", "action", "fetch", "resource", "entry", "result", "ok", "entry_id", entryID, "cache", "hit")
 		return *entry.ReadableContent, nil
 	}
 
@@ -75,6 +76,7 @@ func (s *readabilityService) FetchReadableContent(ctx context.Context, entryID i
 	// Fetch with Chrome fingerprint and Anubis support
 	body, err := s.fetchWithChrome(ctx, *entry.URL, "", 0)
 	if err != nil {
+		logger.Warn("readability fetch failed", "module", "service", "action", "fetch", "resource", "entry", "result", "failed", "entry_id", entryID, "host", network.ExtractHost(*entry.URL), "error", err)
 		return "", err
 	}
 
@@ -97,6 +99,7 @@ func (s *readabilityService) FetchReadableContent(ctx context.Context, entryID i
 	parser := readability.NewParser()
 	article, err := parser.Parse(strings.NewReader(sanitized), parsedURL)
 	if err != nil {
+		logger.Error("readability parse failed", "module", "service", "action", "fetch", "resource", "entry", "result", "failed", "entry_id", entryID, "host", network.ExtractHost(*entry.URL), "error", err)
 		return "", fmt.Errorf("parse content failed: %w", err)
 	}
 
@@ -113,9 +116,11 @@ func (s *readabilityService) FetchReadableContent(ctx context.Context, entryID i
 
 	// Save to database
 	if err := s.entries.UpdateReadableContent(ctx, entryID, content); err != nil {
+		logger.Error("readability cache save failed", "module", "service", "action", "save", "resource", "entry", "result", "failed", "entry_id", entryID, "error", err)
 		return "", err
 	}
 
+	logger.Info("readability cached", "module", "service", "action", "save", "resource", "entry", "result", "ok", "entry_id", entryID)
 	return content, nil
 }
 
@@ -182,10 +187,12 @@ func (s *readabilityService) doFetch(ctx context.Context, session *azuretls.Sess
 		OrderedHeaders: headers,
 	})
 	if err != nil {
+		logger.Warn("readability request failed", "module", "service", "action", "fetch", "resource", "entry", "result", "failed", "host", parsedURL.Host, "error", err)
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
+		logger.Error("readability http error", "module", "service", "action", "fetch", "resource", "entry", "result", "failed", "host", parsedURL.Host, "status_code", resp.StatusCode)
 		return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
 	}
 
@@ -195,19 +202,22 @@ func (s *readabilityService) doFetch(ctx context.Context, session *azuretls.Sess
 	if s.anubis != nil && anubis.IsAnubisPage(body) {
 		// Check if it's a rejection (not solvable)
 		if !anubis.IsAnubisChallenge(body) {
+			logger.Warn("readability upstream rejected", "module", "service", "action", "fetch", "resource", "entry", "result", "failed", "host", parsedURL.Host)
 			return nil, fmt.Errorf("upstream rejected")
 		}
 		// It's a solvable challenge
 		if retryCount >= 2 || isFreshSession {
+			logger.Warn("readability anubis persists", "module", "service", "action", "fetch", "resource", "entry", "result", "failed", "host", parsedURL.Host, "retry_count", retryCount)
 			return nil, fmt.Errorf("anubis challenge persists after %d retries for %s", retryCount, targetURL)
 		}
-		logger.Debug("readability detected Anubis challenge", "url", targetURL)
+		logger.Debug("readability detected anubis challenge", "module", "service", "action", "fetch", "resource", "entry", "result", "ok", "host", parsedURL.Host)
 		var initialCookies []*http.Cookie
 		for name, value := range resp.Cookies {
 			initialCookies = append(initialCookies, &http.Cookie{Name: name, Value: value})
 		}
 		newCookie, solveErr := s.anubis.SolveFromBody(ctx, body, targetURL, initialCookies)
 		if solveErr != nil {
+			logger.Warn("readability anubis solve failed", "module", "service", "action", "fetch", "resource", "entry", "result", "failed", "host", parsedURL.Host, "error", solveErr)
 			return nil, fmt.Errorf("anubis solve failed: %w", solveErr)
 		}
 		return s.fetchWithFreshSession(ctx, targetURL, newCookie, retryCount+1)

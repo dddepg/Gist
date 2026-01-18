@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/labstack/echo/v4"
+
+	"gist/backend/internal/logger"
 )
 
 func registerStatic(e *echo.Echo, dir string) {
@@ -17,9 +19,11 @@ func registerStatic(e *echo.Echo, dir string) {
 	indexPath := filepath.Join(dir, "index.html")
 	info, err := os.Stat(indexPath)
 	if err != nil || info.IsDir() {
-		e.Logger.Warnf("static index not found at %s", indexPath)
+		logger.Warn("static index missing", "module", "http", "action", "request", "resource", "http", "result", "failed", "path", indexPath)
 		return
 	}
+
+	logger.Info("static assets enabled", "module", "http", "action", "request", "resource", "http", "result", "ok", "dir", dir)
 
 	fileServer := nethttp.FileServer(nethttp.Dir(dir))
 
@@ -29,6 +33,7 @@ func registerStatic(e *echo.Echo, dir string) {
 			return echo.ErrNotFound
 		}
 		if requestPath == "/" {
+			logger.Debug("static index served", "module", "http", "action", "fetch", "resource", "http", "result", "ok", "path", requestPath)
 			return c.File(indexPath)
 		}
 
@@ -40,10 +45,12 @@ func registerStatic(e *echo.Echo, dir string) {
 		candidate := filepath.Join(dir, cleanPath)
 		fileInfo, err := os.Stat(candidate)
 		if err == nil && !fileInfo.IsDir() {
+			logger.Debug("static file served", "module", "http", "action", "fetch", "resource", "http", "result", "ok", "path", requestPath)
 			fileServer.ServeHTTP(c.Response(), c.Request())
 			return nil
 		}
 
+		logger.Debug("static fallback", "module", "http", "action", "fetch", "resource", "http", "result", "ok", "path", requestPath)
 		return c.File(indexPath)
 	})
 }

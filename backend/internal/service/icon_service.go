@@ -146,11 +146,11 @@ func (s *iconService) FetchAndSaveIcon(ctx context.Context, feedImageURL, siteUR
 			successURL = iconURL
 			break
 		}
-		logger.Debug("icon download failed, trying next", "url", iconURL, "error", lastErr)
+		logger.Debug("icon download failed", "module", "service", "action", "fetch", "resource", "icon", "result", "failed", "host", network.ExtractHost(iconURL), "error", lastErr)
 	}
 
 	if result == nil {
-		logger.Debug("all icon download attempts failed", "lastError", lastErr)
+		logger.Debug("icon download attempts failed", "module", "service", "action", "fetch", "resource", "icon", "result", "failed", "error", lastErr)
 		return "", nil // All attempts failed, icon is optional
 	}
 
@@ -186,7 +186,7 @@ func (s *iconService) FetchAndSaveIcon(ctx context.Context, feedImageURL, siteUR
 		return "", fmt.Errorf("write icon file: %w", err)
 	}
 
-	logger.Info("icon saved", "path", iconPath, "site", siteURL, "format", result.format.ext)
+	logger.Info("icon saved", "module", "service", "action", "save", "resource", "icon", "result", "ok", "path", iconPath, "host", network.ExtractHost(siteURL), "format", result.format.ext)
 	return iconPath, nil
 }
 
@@ -225,7 +225,7 @@ func (s *iconService) EnsureIcon(ctx context.Context, iconPath, siteURL string) 
 	if localURL := s.buildLocalFaviconURL(siteURL); localURL != "" {
 		iconData, err = s.downloadIcon(ctx, localURL)
 		if err != nil {
-			logger.Debug("local favicon.ico download failed, trying Google API", "url", localURL, "error", err)
+			logger.Debug("local favicon.ico download failed", "module", "service", "action", "fetch", "resource", "icon", "result", "failed", "host", network.ExtractHost(localURL), "error", err)
 		}
 	}
 
@@ -331,16 +331,18 @@ func (s *iconService) BackfillIcons(ctx context.Context) error {
 	// 1. Fetch icons for feeds without icon_path in DB
 	feeds, err := s.feeds.ListWithoutIcon(ctx)
 	if err != nil {
+		logger.Error("icon backfill list feeds failed", "module", "service", "action", "list", "resource", "icon", "result", "failed", "error", err)
 		return fmt.Errorf("list feeds without icon: %w", err)
 	}
 	if len(feeds) > 0 {
-		logger.Info("backfilling icons for feeds without icon", "count", len(feeds))
+		logger.Info("icon backfill started", "module", "service", "action", "fetch", "resource", "icon", "result", "ok", "count", len(feeds))
 	}
 	s.fetchIconsForFeeds(ctx, parser, feeds)
 
 	// 2. Re-download missing or stale icon files
 	allFeeds, err := s.feeds.List(ctx, nil)
 	if err != nil {
+		logger.Error("icon backfill list all feeds failed", "module", "service", "action", "list", "resource", "icon", "result", "failed", "error", err)
 		return fmt.Errorf("list all feeds: %w", err)
 	}
 
@@ -388,9 +390,12 @@ func (s *iconService) BackfillIcons(ctx context.Context) error {
 		}
 		if feedsToRefetch, err := s.feeds.ListWithoutIcon(ctx); err == nil {
 			s.fetchIconsForFeeds(ctx, parser, feedsToRefetch)
+		} else {
+			logger.Warn("icon backfill refetch list failed", "module", "service", "action", "list", "resource", "icon", "result", "failed", "error", err)
 		}
 	}
 
+	logger.Info("icon backfill completed", "module", "service", "action", "fetch", "resource", "icon", "result", "ok")
 	return nil
 }
 
@@ -415,10 +420,14 @@ func (s *iconService) fetchIconsForFeeds(ctx context.Context, parser *gofeed.Par
 
 			iconPath, err := s.FetchAndSaveIcon(ctx, imageURL, siteURL)
 			if err != nil || iconPath == "" {
+				if err != nil {
+					logger.Debug("icon fetch failed", "module", "service", "action", "fetch", "resource", "icon", "result", "failed", "feed_id", feed.ID, "error", err)
+				}
 				return nil // Don't propagate error, continue with other feeds
 			}
 			_ = s.feeds.UpdateIconPath(ctx, feed.ID, iconPath)
 			return nil
+
 		})
 	}
 
@@ -576,7 +585,7 @@ func (s *iconService) downloadIconWithRetry(ctx context.Context, iconURL string,
 			// Too many retries, give up
 			return nil, fmt.Errorf("anubis challenge persists after %d retries", retryCount)
 		}
-		logger.Debug("icon download detected Anubis challenge", "url", iconURL)
+		logger.Debug("icon download detected anubis challenge", "module", "service", "action", "fetch", "resource", "icon", "result", "ok", "host", network.ExtractHost(iconURL))
 		newCookie, solveErr := s.anubis.SolveFromBody(ctx, data, iconURL, resp.Cookies())
 		if solveErr != nil {
 			return nil, solveErr
@@ -650,6 +659,7 @@ func (s *iconService) ClearAllIcons(ctx context.Context) (int64, error) {
 	iconsDir := filepath.Join(s.dataDir, "icons")
 	entries, err := os.ReadDir(iconsDir)
 	if err != nil && !os.IsNotExist(err) {
+		logger.Error("icon cache read failed", "module", "service", "action", "clear", "resource", "icon", "result", "failed", "error", err)
 		return 0, fmt.Errorf("read icons dir: %w", err)
 	}
 
@@ -667,6 +677,7 @@ func (s *iconService) ClearAllIcons(ctx context.Context) (int64, error) {
 	// 2. Clear all icon_path in database
 	_, err = s.feeds.ClearAllIconPaths(ctx)
 	if err != nil {
+		logger.Error("icon cache clear db failed", "module", "service", "action", "clear", "resource", "icon", "result", "failed", "error", err)
 		return deletedFiles, fmt.Errorf("clear icon paths in db: %w", err)
 	}
 
@@ -674,9 +685,11 @@ func (s *iconService) ClearAllIcons(ctx context.Context) (int64, error) {
 	// This ensures icons will be re-fetched even if feed returns 304 Not Modified
 	_, err = s.feeds.ClearAllConditionalGet(ctx)
 	if err != nil {
+		logger.Error("icon cache clear conditional get failed", "module", "service", "action", "clear", "resource", "icon", "result", "failed", "error", err)
 		return deletedFiles, fmt.Errorf("clear conditional get: %w", err)
 	}
 
+	logger.Info("icon cache cleared", "module", "service", "action", "clear", "resource", "icon", "result", "ok", "count", deletedFiles)
 	return deletedFiles, nil
 }
 

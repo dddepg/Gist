@@ -93,7 +93,13 @@ func (s *Solver) SolveFromBody(ctx context.Context, body []byte, originalURL str
 	s.mu.Lock()
 	if ch, ok := s.solving[host]; ok {
 		s.mu.Unlock()
-		logger.Debug("anubis waiting for ongoing solve", "host", host)
+		logger.Debug("anubis waiting for ongoing solve",
+			"module", "service",
+			"action", "solve",
+			"resource", "anubis",
+			"result", "ok",
+			"host", host,
+		)
 		select {
 		case <-ch:
 			// Small delay to let the cookie propagate and avoid thundering herd
@@ -128,9 +134,14 @@ func (s *Solver) SolveFromBody(ctx context.Context, body []byte, originalURL str
 	}
 
 	logger.Debug("anubis detected challenge",
-		"url", originalURL,
+		"module", "service",
+		"action", "solve",
+		"resource", "anubis",
+		"result", "ok",
+		"host", extractHost(originalURL),
 		"algorithm", challenge.Rules.Algorithm,
-		"difficulty", challenge.Rules.Difficulty)
+		"difficulty", challenge.Rules.Difficulty,
+	)
 
 	// Solve the challenge based on algorithm type
 	result, err := solveChallenge(ctx, challenge)
@@ -147,9 +158,23 @@ func (s *Solver) SolveFromBody(ctx context.Context, body []byte, originalURL str
 	// Cache the cookie
 	if s.store != nil && host != "" {
 		if err := s.store.SetCookie(ctx, host, cookie, expiresAt); err != nil {
-			logger.Warn("anubis failed to cache cookie", "host", host, "error", err)
+			logger.Warn("anubis failed to cache cookie",
+				"module", "service",
+				"action", "save",
+				"resource", "anubis",
+				"result", "failed",
+				"host", host,
+				"error", err,
+			)
 		} else {
-			logger.Debug("anubis cached cookie", "host", host, "expires", expiresAt.Format(time.RFC3339))
+			logger.Debug("anubis cached cookie",
+				"module", "service",
+				"action", "save",
+				"resource", "anubis",
+				"result", "ok",
+				"host", host,
+				"expires", expiresAt.Format(time.RFC3339),
+			)
 		}
 	}
 
@@ -203,7 +228,13 @@ func solveChallenge(ctx context.Context, challenge *Challenge) (solveResult, err
 		return solveProofOfWork(ctx, randomData, difficulty)
 	default:
 		// Default to preact for unknown algorithms
-		logger.Warn("anubis unknown algorithm, using preact", "algorithm", algorithm)
+		logger.Warn("anubis unknown algorithm, using preact",
+			"module", "service",
+			"action", "solve",
+			"resource", "anubis",
+			"result", "failed",
+			"algorithm", algorithm,
+		)
 		return solvePreact(ctx, randomData, difficulty)
 	}
 }
@@ -216,11 +247,23 @@ func solvePreact(ctx context.Context, randomData string, difficulty int) (solveR
 
 	// Wait required time: difficulty * 80ms (server validates this)
 	waitTime := time.Duration(difficulty)*80*time.Millisecond + 50*time.Millisecond
-	logger.Debug("anubis preact: waiting", "duration", waitTime)
+	logger.Debug("anubis preact: waiting",
+		"module", "service",
+		"action", "solve",
+		"resource", "anubis",
+		"result", "ok",
+		"duration_ms", waitTime.Milliseconds(),
+	)
 
 	select {
 	case <-time.After(waitTime):
-		logger.Debug("anubis preact solved", "hash", truncateForLog(hash))
+		logger.Debug("anubis preact solved",
+			"module", "service",
+			"action", "solve",
+			"resource", "anubis",
+			"result", "ok",
+			"hash", truncateForLog(hash),
+		)
 		return solveResult{Hash: hash}, nil
 	case <-ctx.Done():
 		return solveResult{}, ctx.Err()
@@ -231,12 +274,24 @@ func solvePreact(ctx context.Context, randomData string, difficulty int) (solveR
 func solveMetaRefresh(ctx context.Context, randomData string, difficulty int) (solveResult, error) {
 	// Wait required time: difficulty * 800ms (server validates this)
 	waitTime := time.Duration(difficulty)*800*time.Millisecond + 100*time.Millisecond
-	logger.Debug("anubis metarefresh: waiting", "duration", waitTime)
+	logger.Debug("anubis metarefresh: waiting",
+		"module", "service",
+		"action", "solve",
+		"resource", "anubis",
+		"result", "ok",
+		"duration_ms", waitTime.Milliseconds(),
+	)
 
 	select {
 	case <-time.After(waitTime):
 		// metarefresh returns randomData directly, not a hash
-		logger.Debug("anubis metarefresh solved", "data", truncateForLog(randomData))
+		logger.Debug("anubis metarefresh solved",
+			"module", "service",
+			"action", "solve",
+			"resource", "anubis",
+			"result", "ok",
+			"data", truncateForLog(randomData),
+		)
 		return solveResult{Hash: randomData}, nil
 	case <-ctx.Done():
 		return solveResult{}, ctx.Err()
@@ -265,10 +320,15 @@ func solveProofOfWork(ctx context.Context, randomData string, difficulty int) (s
 		if strings.HasPrefix(hashHex, prefix) {
 			elapsed := time.Since(startTime).Milliseconds()
 			logger.Debug("anubis PoW solved",
+				"module", "service",
+				"action", "solve",
+				"resource", "anubis",
+				"result", "ok",
 				"difficulty", difficulty,
 				"nonce", nonce,
 				"elapsed_ms", elapsed,
-				"hash", truncateForLog(hashHex))
+				"hash", truncateForLog(hashHex),
+			)
 			return solveResult{
 				Hash:    hashHex,
 				Nonce:   nonce,
@@ -357,7 +417,13 @@ func (s *Solver) submit(ctx context.Context, originalURL string, challenge *Chal
 		headers = append(headers, []string{"cookie", strings.Join(cookieParts, "; ")})
 	}
 
-	logger.Debug("anubis submitting solution", "url", submitURL)
+	logger.Debug("anubis submitting solution",
+		"module", "service",
+		"action", "submit",
+		"resource", "anubis",
+		"result", "ok",
+		"host", extractHost(submitURL),
+	)
 
 	// Send request with redirect disabled to capture Set-Cookie header
 	resp, err := session.Do(&azuretls.Request{
@@ -367,15 +433,34 @@ func (s *Solver) submit(ctx context.Context, originalURL string, challenge *Chal
 		DisableRedirects: true,
 	})
 	if err != nil {
-		logger.Debug("anubis submit request failed", "error", err)
+		logger.Debug("anubis submit request failed",
+			"module", "service",
+			"action", "submit",
+			"resource", "anubis",
+			"result", "failed",
+			"error", err,
+		)
 		return "", time.Time{}, fmt.Errorf("submit request: %w", err)
 	}
 
-	logger.Debug("anubis submit response", "status", resp.StatusCode, "cookies", len(resp.Cookies))
+	logger.Debug("anubis submit response",
+		"module", "service",
+		"action", "submit",
+		"resource", "anubis",
+		"result", "ok",
+		"status_code", resp.StatusCode,
+		"cookies", len(resp.Cookies),
+	)
 
 	// Expected: 302 redirect with Set-Cookie
 	if resp.StatusCode != http.StatusFound && resp.StatusCode != http.StatusOK {
-		logger.Debug("anubis unexpected status", "status", resp.StatusCode, "body", string(resp.Body))
+		logger.Debug("anubis unexpected status",
+			"module", "service",
+			"action", "submit",
+			"resource", "anubis",
+			"result", "failed",
+			"status_code", resp.StatusCode,
+		)
 		return "", time.Time{}, fmt.Errorf("unexpected status %d: %s", resp.StatusCode, string(resp.Body))
 	}
 
@@ -388,7 +473,13 @@ func (s *Solver) submit(ctx context.Context, originalURL string, challenge *Chal
 	}
 
 	if len(anubisCookieParts) == 0 {
-		logger.Debug("anubis no cookies found", "allCookies", resp.Cookies)
+		logger.Debug("anubis no cookies found",
+			"module", "service",
+			"action", "submit",
+			"resource", "anubis",
+			"result", "failed",
+			"all_cookies", resp.Cookies,
+		)
 		return "", time.Time{}, fmt.Errorf("no anubis cookies in response")
 	}
 

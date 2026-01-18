@@ -5,11 +5,22 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 
+	"gist/backend/internal/logger"
 	"gist/backend/internal/service"
 )
+
+func safeHost(rawURL string) string {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return ""
+	}
+	return parsed.Host
+}
 
 const cacheMaxAge = 86400 // 1 day
 
@@ -42,12 +53,14 @@ func (h *ProxyHandler) RegisterRoutes(g *echo.Group) {
 func (h *ProxyHandler) ProxyImage(c echo.Context) error {
 	encoded := c.Param("encoded")
 	if encoded == "" {
+		logger.Debug("proxy image missing url", "module", "handler", "action", "request", "resource", "proxy", "result", "failed")
 		return Error(c, http.StatusBadRequest, "URL is required")
 	}
 
 	// Decode Base64 URL-safe
 	decoded, err := base64.URLEncoding.DecodeString(encoded)
 	if err != nil {
+		logger.Debug("proxy image invalid encoding", "module", "handler", "action", "request", "resource", "proxy", "result", "failed", "error", err)
 		return Error(c, http.StatusBadRequest, "Invalid encoding")
 	}
 	imageURL := string(decoded)
@@ -62,9 +75,11 @@ func (h *ProxyHandler) ProxyImage(c echo.Context) error {
 
 	result, err := h.proxyService.FetchImage(c.Request().Context(), imageURL, refererURL)
 	if err != nil {
+		logger.Warn("proxy image fetch failed", "module", "handler", "action", "fetch", "resource", "proxy", "result", "failed", "host", safeHost(imageURL), "error", err)
 		return h.handleServiceError(c, err)
 	}
 
+	logger.Debug("proxy image fetched", "module", "handler", "action", "fetch", "resource", "proxy", "result", "ok", "host", safeHost(imageURL), "content_type", strings.ToLower(result.ContentType))
 	c.Response().Header().Set("Content-Type", result.ContentType)
 	c.Response().Header().Set("Cache-Control", fmt.Sprintf("public, max-age=%d", cacheMaxAge))
 	c.Response().Header().Set("X-Content-Type-Options", "nosniff")

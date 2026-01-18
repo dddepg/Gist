@@ -277,6 +277,25 @@ entries_ad  -- AFTER DELETE: 同步删除 entries_fts
 *   `GIST_STATIC_DIR` - 静态文件目录
 *   `GIST_LOG_LEVEL` - 日志级别 (debug/info/warn/error，默认 `info`)
 
+### 4.9 日志规范
+*   **Logger 封装**：使用 `internal/logger` 包，**禁止**直接使用 `log`、`slog` 或 `fmt.Print`。
+*   **日志级别**：小写格式，按严重程度选择：
+    *   `error`: HTTP 5xx、系统关键错误
+    *   `warn`: HTTP 4xx、可恢复错误、重试
+    *   `info`: 操作成功、生命周期事件
+    *   `debug`: 调试信息
+*   **标准字段**：业务日志必须包含 `module`、`action`、`resource`、`result` 四个字段。
+    *   `module`: `http` | `handler` | `service` | `scheduler` | `network`
+    *   `action`: `create` | `fetch` | `update` | `delete` | `refresh` | `list` | `login` | `request`
+    *   `resource`: `feed` | `entry` | `folder` | `auth` | `ai` | `icon` | `settings` | `anubis`
+    *   `result`: `ok` | `failed` | `skipped` | `cancelled`
+*   **字段命名**：所有 key 使用 `snake_case`（如 `feed_id`、`status_code`），**禁止** camelCase。
+*   **可读性**：有 feed 对象时应同时记录 `feed_id` 和 `feed_title`。
+*   **安全规范**：
+    *   URL 使用 `network.ExtractHost()` 脱敏，**禁止**记录完整 URL
+    *   **禁止**记录密码、Token、API Key 的实际值
+*   **分层职责**：Repository 层**不记录**日志，错误向上传递给 Service 层处理。
+
 ---
 
 ## 5. 前端开发规范 (TypeScript/React)

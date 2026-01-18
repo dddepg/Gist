@@ -7,6 +7,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 
+	"gist/backend/internal/logger"
 	"gist/backend/internal/model"
 	"gist/backend/internal/service"
 )
@@ -82,8 +83,10 @@ func (h *FolderHandler) Create(c echo.Context) error {
 	}
 	folder, err := h.service.Create(c.Request().Context(), req.Name, parentID, folderType)
 	if err != nil {
+		logger.Error("folder create failed", "module", "handler", "action", "create", "resource", "folder", "result", "failed", "error", err)
 		return writeServiceError(c, err)
 	}
+	logger.Info("folder created", "module", "handler", "action", "create", "resource", "folder", "result", "ok", "folder_id", folder.ID)
 	return c.JSON(http.StatusCreated, toFolderResponse(folder))
 }
 
@@ -97,6 +100,7 @@ func (h *FolderHandler) Create(c echo.Context) error {
 func (h *FolderHandler) List(c echo.Context) error {
 	folders, err := h.service.List(c.Request().Context())
 	if err != nil {
+		logger.Error("folder list failed", "module", "handler", "action", "list", "resource", "folder", "result", "failed", "error", err)
 		return writeServiceError(c, err)
 	}
 	response := make([]folderResponse, 0, len(folders))
@@ -137,8 +141,10 @@ func (h *FolderHandler) Update(c echo.Context) error {
 	}
 	folder, err := h.service.Update(c.Request().Context(), id, req.Name, parentID)
 	if err != nil {
+		logger.Error("folder update failed", "module", "handler", "action", "update", "resource", "folder", "result", "failed", "folder_id", id, "error", err)
 		return writeServiceError(c, err)
 	}
+	logger.Info("folder updated", "module", "handler", "action", "update", "resource", "folder", "result", "ok", "folder_id", folder.ID)
 	return c.JSON(http.StatusOK, toFolderResponse(folder))
 }
 
@@ -166,8 +172,10 @@ func (h *FolderHandler) UpdateType(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, errorResponse{Error: "type must be article, picture, or notification"})
 	}
 	if err := h.service.UpdateType(c.Request().Context(), id, req.Type); err != nil {
+		logger.Error("folder update type failed", "module", "handler", "action", "update", "resource", "folder", "result", "failed", "folder_id", id, "type", req.Type, "error", err)
 		return writeServiceError(c, err)
 	}
+	logger.Info("folder type updated", "module", "handler", "action", "update", "resource", "folder", "result", "ok", "folder_id", id, "type", req.Type)
 	return c.NoContent(http.StatusNoContent)
 }
 
@@ -186,8 +194,10 @@ func (h *FolderHandler) Delete(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, errorResponse{Error: "invalid request"})
 	}
 	if err := h.service.Delete(c.Request().Context(), id); err != nil {
+		logger.Error("folder delete failed", "module", "handler", "action", "delete", "resource", "folder", "result", "failed", "folder_id", id, "error", err)
 		return writeServiceError(c, err)
 	}
+	logger.Info("folder deleted", "module", "handler", "action", "delete", "resource", "folder", "result", "ok", "folder_id", id)
 	return c.NoContent(http.StatusNoContent)
 }
 
@@ -215,10 +225,12 @@ func (h *FolderHandler) DeleteBatch(c echo.Context) error {
 			return c.JSON(http.StatusBadRequest, errorResponse{Error: "invalid folder ID"})
 		}
 		if err := h.service.Delete(c.Request().Context(), id); err != nil {
+			logger.Error("folder batch delete failed", "module", "handler", "action", "delete", "resource", "folder", "result", "failed", "folder_id", id, "error", err)
 			return writeServiceError(c, err)
 		}
 	}
 
+	logger.Info("folder batch deleted", "module", "handler", "action", "delete", "resource", "folder", "result", "ok", "count", len(req.IDs))
 	return c.NoContent(http.StatusNoContent)
 }
 

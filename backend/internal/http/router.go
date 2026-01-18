@@ -7,6 +7,7 @@ import (
 
 	_ "gist/backend/docs"
 	"gist/backend/internal/handler"
+	"gist/backend/internal/logger"
 	"gist/backend/internal/service"
 )
 
@@ -28,6 +29,8 @@ func NewRouter(
 	e.HideBanner = true
 	e.Use(middleware.Recover())
 	e.Use(RequestLoggerMiddleware())
+
+	logger.Info("router initialized", "module", "http", "action", "request", "resource", "http", "result", "ok", "static_dir", staticDir)
 
 	e.GET("/swagger/*", echoSwagger.WrapHandler)
 

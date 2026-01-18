@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"gist/backend/internal/logger"
 	"gist/backend/internal/model"
 	"gist/backend/internal/opml"
 	"gist/backend/internal/repository"
@@ -69,6 +70,7 @@ func (s *opmlService) Import(ctx context.Context, reader io.Reader, onProgress f
 	// Count total feeds
 	total := countFeeds(doc.Body.Outlines)
 
+	logger.Info("opml import parsed", "module", "service", "action", "import", "resource", "opml", "result", "ok", "count", total)
 	// Send started progress
 	if onProgress != nil {
 		onProgress(ImportProgress{Total: total, Current: 0, Status: "started"})
@@ -80,8 +82,10 @@ func (s *opmlService) Import(ctx context.Context, reader io.Reader, onProgress f
 
 	for _, outline := range doc.Body.Outlines {
 		if err := s.importOutline(ctx, outline, nil, "article", &result, &current, total, onProgress, &newFeedIDs); err != nil {
+			logger.Error("opml import failed", "module", "service", "action", "import", "resource", "opml", "result", "failed", "error", err)
 			return result, err
 		}
+
 	}
 
 	// Concurrently refresh newly created feeds and backfill icons
@@ -97,6 +101,7 @@ func (s *opmlService) Import(ctx context.Context, reader io.Reader, onProgress f
 		}()
 	}
 
+	logger.Info("opml import completed", "module", "service", "action", "import", "resource", "opml", "result", "ok", "folders_created", result.FoldersCreated, "folders_skipped", result.FoldersSkipped, "feeds_created", result.FeedsCreated, "feeds_skipped", result.FeedsSkipped)
 	return result, nil
 }
 
@@ -115,10 +120,12 @@ func countFeeds(outlines []opml.Outline) int {
 func (s *opmlService) Export(ctx context.Context) ([]byte, error) {
 	folders, err := s.folders.List(ctx)
 	if err != nil {
+		logger.Error("opml export list folders failed", "module", "service", "action", "export", "resource", "opml", "result", "failed", "error", err)
 		return nil, fmt.Errorf("list folders: %w", err)
 	}
 	feeds, err := s.feeds.List(ctx, nil)
 	if err != nil {
+		logger.Error("opml export list feeds failed", "module", "service", "action", "export", "resource", "opml", "result", "failed", "error", err)
 		return nil, fmt.Errorf("list feeds: %w", err)
 	}
 
@@ -136,8 +143,10 @@ func (s *opmlService) Export(ctx context.Context) ([]byte, error) {
 
 	payload, err := opml.Encode(doc)
 	if err != nil {
+		logger.Error("opml export encode failed", "module", "service", "action", "export", "resource", "opml", "result", "failed", "error", err)
 		return nil, fmt.Errorf("encode opml: %w", err)
 	}
+	logger.Info("opml export completed", "module", "service", "action", "export", "resource", "opml", "result", "ok", "folders", len(folders), "feeds", len(feeds))
 	return payload, nil
 }
 
