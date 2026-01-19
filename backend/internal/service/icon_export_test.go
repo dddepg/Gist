@@ -47,3 +47,31 @@ func DownloadIconWithFreshClientForTest(svc IconService, ctx context.Context, ic
 	_, err := impl.downloadIconWithFreshClient(ctx, iconURL, cookie, retryCount)
 	return err
 }
+
+// BuildDDGFaviconURLForTest exposes the DuckDuckGo favicon URL builder for tests.
+// See commit 8a23586: fix: Add DuckDuckGo Favicon API as fallback
+func BuildDDGFaviconURLForTest(svc IconService, siteURL string) string {
+	impl, ok := svc.(*iconService)
+	if !ok {
+		return ""
+	}
+	return impl.buildDDGFaviconURL(siteURL)
+}
+
+// BuildLocalFaviconURLForTest exposes the local favicon URL builder for tests.
+func BuildLocalFaviconURLForTest(svc IconService, siteURL string) string {
+	impl, ok := svc.(*iconService)
+	if !ok {
+		return ""
+	}
+	return impl.buildLocalFaviconURL(siteURL)
+}
+
+// BuildFaviconURLForTest exposes the Google favicon URL builder for tests.
+func BuildFaviconURLForTest(svc IconService, siteURL string) string {
+	impl, ok := svc.(*iconService)
+	if !ok {
+		return ""
+	}
+	return impl.buildFaviconURL(siteURL)
+}

@@ -196,6 +196,99 @@ func TestParseTimePtr(t *testing.T) {
 	require.Equal(t, ts, got.UTC().Format(time.RFC3339))
 }
 
+// TestEntryRepository_CreateOrUpdate_PreservesExistingPublishedAt tests the BUG fix:
+// When an entry is updated (via ON CONFLICT), the existing published_at should be
+// preserved using COALESCE, not overwritten by the new value.
+// See commit 4b9dbc0: fix: Refresh should not overwrite existing published_at
+func TestEntryRepository_CreateOrUpdate_PreservesExistingPublishedAt(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	repo := repository.NewEntryRepository(db)
+	ctx := context.Background()
+
+	feedID := testutil.SeedFeed(t, db, model.Feed{Title: "Test Feed", URL: "url"})
+
+	title := "Test Entry"
+	url := "https://example.com/entry"
+	originalTime := time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
+
+	// Create entry with published_at
+	entry := model.Entry{
+		FeedID:      feedID,
+		Title:       &title,
+		URL:         &url,
+		PublishedAt: &originalTime,
+	}
+	err := repo.CreateOrUpdate(ctx, entry)
+	require.NoError(t, err)
+
+	// Update the same entry with a different published_at
+	newTime := time.Date(2025, 6, 15, 12, 0, 0, 0, time.UTC)
+	updatedEntry := model.Entry{
+		FeedID:      feedID,
+		Title:       &title,
+		URL:         &url,
+		PublishedAt: &newTime,
+	}
+	err = repo.CreateOrUpdate(ctx, updatedEntry)
+	require.NoError(t, err)
+
+	// Verify that the original published_at is preserved
+	entries, err := repo.List(ctx, repository.EntryListFilter{FeedID: &feedID})
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	require.NotNil(t, entries[0].PublishedAt)
+	require.Equal(t, originalTime.Format(time.RFC3339), entries[0].PublishedAt.UTC().Format(time.RFC3339))
+}
+
+// TestEntryRepository_CreateOrUpdate_SetsPublishedAtWhenNull tests the BUG fix:
+// When an entry is updated and the existing published_at is NULL, the new value
+// should be used (COALESCE returns the first non-NULL value).
+// See commit 4b9dbc0: fix: Refresh should not overwrite existing published_at
+func TestEntryRepository_CreateOrUpdate_SetsPublishedAtWhenNull(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	repo := repository.NewEntryRepository(db)
+	ctx := context.Background()
+
+	feedID := testutil.SeedFeed(t, db, model.Feed{Title: "Test Feed", URL: "url"})
+
+	title := "Test Entry"
+	url := "https://example.com/entry"
+
+	// Create entry without published_at
+	entry := model.Entry{
+		FeedID:      feedID,
+		Title:       &title,
+		URL:         &url,
+		PublishedAt: nil,
+	}
+	err := repo.CreateOrUpdate(ctx, entry)
+	require.NoError(t, err)
+
+	// Verify entry has no published_at
+	entries, err := repo.List(ctx, repository.EntryListFilter{FeedID: &feedID})
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	require.Nil(t, entries[0].PublishedAt)
+
+	// Update the same entry with a published_at
+	newTime := time.Date(2025, 6, 15, 12, 0, 0, 0, time.UTC)
+	updatedEntry := model.Entry{
+		FeedID:      feedID,
+		Title:       &title,
+		URL:         &url,
+		PublishedAt: &newTime,
+	}
+	err = repo.CreateOrUpdate(ctx, updatedEntry)
+	require.NoError(t, err)
+
+	// Verify that the new published_at is set
+	entries, err = repo.List(ctx, repository.EntryListFilter{FeedID: &feedID})
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	require.NotNil(t, entries[0].PublishedAt)
+	require.Equal(t, newTime.Format(time.RFC3339), entries[0].PublishedAt.UTC().Format(time.RFC3339))
+}
+
 func stringPtr(s string) *string {
 	return &s
 }

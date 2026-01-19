@@ -541,6 +541,72 @@ func TestFeedService_HelperFunctions(t *testing.T) {
 	require.Nil(t, service.OptionalString("  "))
 }
 
+// TestExtractPublishedAt_FallbackToCurrentTime tests the BUG fix:
+// When an RSS item has no pubDate (PublishedParsed) and no UpdatedParsed,
+// extractPublishedAt should return the current time instead of nil.
+// See commit 4e2de23: fix: RSS entries without pubDate should use current time as default
+func TestExtractPublishedAt_FallbackToCurrentTime(t *testing.T) {
+	// Item with no date fields at all
+	item := &gofeed.Item{
+		Title:       "Test Item",
+		Description: "No date provided",
+	}
+
+	before := time.Now().UTC()
+	got := service.ExtractPublishedAt(item, false)
+	after := time.Now().UTC()
+
+	require.NotNil(t, got, "extractPublishedAt should return a non-nil time when no date is available")
+	require.True(t, got.After(before.Add(-time.Second)) && got.Before(after.Add(time.Second)),
+		"returned time should be approximately the current time")
+}
+
+// TestExtractPublishedAt_UsesPublishedParsed verifies that PublishedParsed is used when available
+func TestExtractPublishedAt_UsesPublishedParsed(t *testing.T) {
+	published := time.Date(2025, 3, 15, 10, 30, 0, 0, time.UTC)
+	item := &gofeed.Item{
+		Title:           "Test Item",
+		PublishedParsed: &published,
+	}
+
+	got := service.ExtractPublishedAt(item, false)
+	require.NotNil(t, got)
+	require.Equal(t, published.Format(time.RFC3339), got.UTC().Format(time.RFC3339))
+}
+
+// TestExtractPublishedAt_UsesUpdatedParsedWhenNoPublished verifies UpdatedParsed is used as fallback
+func TestExtractPublishedAt_UsesUpdatedParsedWhenNoPublished(t *testing.T) {
+	updated := time.Date(2025, 3, 15, 10, 30, 0, 0, time.UTC)
+	item := &gofeed.Item{
+		Title:         "Test Item",
+		UpdatedParsed: &updated,
+	}
+
+	got := service.ExtractPublishedAt(item, false)
+	require.NotNil(t, got)
+	require.Equal(t, updated.Format(time.RFC3339), got.UTC().Format(time.RFC3339))
+}
+
+// TestExtractPublishedAt_IgnoresDynamicTimeWhenSet verifies that dynamic time is ignored
+func TestExtractPublishedAt_IgnoresDynamicTimeWhenSet(t *testing.T) {
+	updated := time.Date(2025, 3, 15, 10, 30, 0, 0, time.UTC)
+	item := &gofeed.Item{
+		Title:         "Test Item",
+		UpdatedParsed: &updated,
+	}
+
+	// When ignoreDynamicTime is true, UpdatedParsed should be ignored
+	// and the function should fallback to current time
+	before := time.Now().UTC()
+	got := service.ExtractPublishedAt(item, true)
+	after := time.Now().UTC()
+
+	require.NotNil(t, got)
+	// Should be approximately current time, not the updated time
+	require.True(t, got.After(before.Add(-time.Second)) && got.Before(after.Add(time.Second)),
+		"returned time should be approximately the current time when ignoring dynamic time")
+}
+
 // settingsServiceStub is a minimal SettingsService implementation for tests.
 type settingsServiceStub struct {
 	fallbackUserAgent string

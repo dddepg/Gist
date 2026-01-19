@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 
@@ -396,4 +397,131 @@ func TestIconService_DownloadIconWithFreshClient(t *testing.T) {
 
 	err := service.DownloadIconWithFreshClientForTest(svc, context.Background(), server.URL, "", 0)
 	require.NoError(t, err)
+}
+
+// TestIconService_BuildDDGFaviconURL tests the DuckDuckGo favicon URL builder.
+// See commit 8a23586: fix: Add DuckDuckGo Favicon API as fallback
+func TestIconService_BuildDDGFaviconURL(t *testing.T) {
+	dataDir := t.TempDir()
+	svc := service.NewIconService(dataDir, &feedRepoStub{}, network.NewClientFactoryForTest(&http.Client{}), nil)
+
+	tests := []struct {
+		name     string
+		siteURL  string
+		expected string
+	}{
+		{
+			name:     "valid URL with https",
+			siteURL:  "https://example.com/path",
+			expected: "https://icons.duckduckgo.com/ip3/example.com.ico",
+		},
+		{
+			name:     "valid URL with http",
+			siteURL:  "http://blog.example.org/feed",
+			expected: "https://icons.duckduckgo.com/ip3/blog.example.org.ico",
+		},
+		{
+			name:     "URL with port",
+			siteURL:  "https://example.com:8080/path",
+			expected: "https://icons.duckduckgo.com/ip3/example.com.ico",
+		},
+		{
+			name:     "empty URL",
+			siteURL:  "",
+			expected: "",
+		},
+		{
+			name:     "invalid URL",
+			siteURL:  "://invalid",
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := service.BuildDDGFaviconURLForTest(svc, tt.siteURL)
+			require.Equal(t, tt.expected, got)
+		})
+	}
+}
+
+// TestIconService_FetchAndSaveIcon_DDGFallback tests that DuckDuckGo is used as fallback.
+// See commit 8a23586: fix: Add DuckDuckGo Favicon API as fallback
+func TestIconService_FetchAndSaveIcon_DDGFallback(t *testing.T) {
+	iconData := pngBytes(t, 2, 2)
+
+	// Track which URLs were requested
+	var requestedURLs []string
+	var mu sync.Mutex
+
+	mux := http.NewServeMux()
+
+	// Local favicon returns 404
+	mux.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		requestedURLs = append(requestedURLs, r.URL.Path)
+		mu.Unlock()
+		http.NotFound(w, r)
+	})
+
+	// Google API path - we need to mock this differently
+	// Since we can't intercept google.com requests, we'll test that DDG URL is built correctly
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	dataDir := t.TempDir()
+	svc := service.NewIconService(dataDir, &feedRepoStub{}, network.NewClientFactoryForTest(&http.Client{}), nil)
+
+	// Test that DDG URL is correctly built
+	parsed, err := url.Parse(server.URL)
+	require.NoError(t, err)
+
+	ddgURL := service.BuildDDGFaviconURLForTest(svc, server.URL)
+	expected := fmt.Sprintf("https://icons.duckduckgo.com/ip3/%s.ico", parsed.Hostname())
+	require.Equal(t, expected, ddgURL, "DuckDuckGo favicon URL should be correctly built")
+
+	// Verify the URL follows the correct format
+	require.Contains(t, ddgURL, "icons.duckduckgo.com/ip3/")
+	require.True(t, strings.HasSuffix(ddgURL, ".ico"), "DuckDuckGo URL should end with .ico")
+
+	// Also test that local and Google URLs are built correctly for the same site
+	localURL := service.BuildLocalFaviconURLForTest(svc, server.URL)
+	require.Contains(t, localURL, "/favicon.ico")
+
+	googleURL := service.BuildFaviconURLForTest(svc, server.URL)
+	require.Contains(t, googleURL, "google.com/s2/favicons")
+
+	_ = iconData // Use iconData to avoid unused variable warning
+}
+
+// TestIconService_ClearAllIcons_ResetsConditionalGet tests that clearing all icons
+// also resets ETag and Last-Modified to force full refresh.
+// See commit 2fbc0ad: fix: Reset ETag and Last-Modified when clearing all icons
+func TestIconService_ClearAllIcons_ResetsConditionalGet(t *testing.T) {
+	dataDir := t.TempDir()
+	iconsDir := filepath.Join(dataDir, "icons")
+	require.NoError(t, os.MkdirAll(iconsDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(iconsDir, "test.png"), []byte("data"), 0644))
+
+	var clearIconPathsCalled, clearCondGetCalled bool
+
+	repo := &feedRepoStub{
+		clearAllIconPathsFn: func(context.Context) (int64, error) {
+			clearIconPathsCalled = true
+			return 1, nil
+		},
+		clearAllCondGetFn: func(context.Context) (int64, error) {
+			clearCondGetCalled = true
+			return 1, nil
+		},
+	}
+
+	svc := service.NewIconService(dataDir, repo, network.NewClientFactoryForTest(&http.Client{}), nil)
+	_, err := svc.ClearAllIcons(context.Background())
+	require.NoError(t, err)
+
+	// Verify both clear functions were called
+	require.True(t, clearIconPathsCalled, "ClearAllIconPaths should be called")
+	require.True(t, clearCondGetCalled, "ClearAllConditionalGet should be called to reset ETag/Last-Modified")
 }

@@ -644,6 +644,44 @@ func TestEntryService_ClearEntryCache_ResetFailureIgnored(t *testing.T) {
 	require.Equal(t, int64(2), count)
 }
 
+// TestEntryService_ClearEntryCache_ResetsConditionalGet tests the BUG fix:
+// When clearing entry cache, the service should also reset all feeds' ETag/Last-Modified
+// to force a full refresh on next update. This prevents entries from being skipped
+// due to 304 Not Modified responses.
+// See commit ac3f935: fix: Reset Conditional GET after clearing entry cache
+func TestEntryService_ClearEntryCache_ResetsConditionalGet(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockEntries := mock.NewMockEntryRepository(ctrl)
+	mockFeeds := mock.NewMockFeedRepository(ctrl)
+	svc := service.NewEntryService(mockEntries, mockFeeds, mock.NewMockFolderRepository(ctrl))
+
+	// Both DeleteUnstarred and ClearAllConditionalGet should be called
+	mockEntries.EXPECT().DeleteUnstarred(context.Background()).Return(int64(5), nil)
+	mockFeeds.EXPECT().ClearAllConditionalGet(context.Background()).Return(int64(3), nil)
+
+	count, err := svc.ClearEntryCache(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, int64(5), count)
+}
+
+// TestEntryService_ClearEntryCache_DeleteError tests that errors from DeleteUnstarred are returned
+func TestEntryService_ClearEntryCache_DeleteError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockEntries := mock.NewMockEntryRepository(ctrl)
+	mockFeeds := mock.NewMockFeedRepository(ctrl)
+	svc := service.NewEntryService(mockEntries, mockFeeds, mock.NewMockFolderRepository(ctrl))
+
+	dbErr := errors.New("delete failed")
+	mockEntries.EXPECT().DeleteUnstarred(context.Background()).Return(int64(0), dbErr)
+
+	_, err := svc.ClearEntryCache(context.Background())
+	require.ErrorIs(t, err, dbErr)
+}
+
 // Helper function
 func stringPtr(s string) *string {
 	return &s
