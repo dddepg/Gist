@@ -409,6 +409,16 @@ entries_ad  -- AFTER DELETE: 同步删除 entries_fts
 *   **回退同步**：监听 `popstate`/`pageshow` 事件，回退或 BFCache 恢复时强制关闭侧边栏/弹层（统一在 `useMobileLayout` 处理）。
 *   **安全区适配**：使用 `100dvh` 与 `safe-area-*` 工具类，固定定位元素必须覆盖或适配安全区。
 
+### 5.8 测试规范 (Vitest)
+
+*   **技术栈**：Vitest + jsdom + `@vitest/coverage-v8`。
+*   **文件位置**：测试文件与源文件同目录，命名 `*.test.ts`（如 `url.test.ts`）。
+*   **测试命令**：
+    *   `bun run test` - 运行测试
+    *   `bun run test:watch` - 监听模式
+    *   `bun run test:coverage` - 生成覆盖率
+*   **Store 测试**：`beforeEach` 中使用 `useMyStore.setState()` 重置状态。
+
 ---
 
 ## 6. API 与交互契约
