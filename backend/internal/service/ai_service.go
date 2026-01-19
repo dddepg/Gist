@@ -129,8 +129,11 @@ func (s *aiService) Summarize(ctx context.Context, entryID int64, content, title
 	// Convert HTML to plain text to save tokens
 	plainText := ai.HTMLToText(content)
 
+	// Wrap input with <input> tags
+	wrappedInput := ai.WrapInput(plainText)
+
 	// Start streaming
-	textCh, errCh := provider.SummarizeStream(ctx, systemPrompt, plainText)
+	textCh, errCh := provider.SummarizeStream(ctx, systemPrompt, wrappedInput)
 	logger.Info("ai summarize stream started", "module", "service", "action", "fetch", "resource", "ai", "result", "ok", "entry_id", entryID, "provider", cfg.Provider, "model", cfg.Model)
 
 	return textCh, errCh, nil
@@ -335,9 +338,12 @@ func (s *aiService) TranslateBlocks(ctx context.Context, entryID int64, content,
 				// Replace media elements with placeholders to prevent AI from modifying them
 				htmlForTranslation, mediaElements := ai.ReplaceMediaWithPlaceholders(b.HTML)
 
+				// Wrap input with <input> tags
+				wrappedInput := ai.WrapInput(htmlForTranslation)
+
 				// Translate single block using non-streaming Complete
 				systemPrompt := ai.GetTranslateBlockPrompt(title, language)
-				translatedHTML, err := provider.Complete(ctx, systemPrompt, htmlForTranslation)
+				translatedHTML, err := provider.Complete(ctx, systemPrompt, wrappedInput)
 				if err != nil {
 					select {
 					case errCh <- fmt.Errorf("translate block %d: %w", b.Index, err):
@@ -518,7 +524,8 @@ func (s *aiService) TranslateBatch(ctx context.Context, articles []BatchArticleI
 						return
 					}
 					titlePrompt := ai.GetTranslateTextPrompt("title", language)
-					translated, err := provider.Complete(ctx, titlePrompt, a.Title)
+					wrappedTitle := ai.WrapInput(a.Title)
+					translated, err := provider.Complete(ctx, titlePrompt, wrappedTitle)
 					if err != nil {
 						select {
 						case errCh <- fmt.Errorf("translate title for %s: %w", a.ID, err):
@@ -544,7 +551,8 @@ func (s *aiService) TranslateBatch(ctx context.Context, articles []BatchArticleI
 						return
 					}
 					summaryPrompt := ai.GetTranslateTextPrompt("summary", language)
-					translated, err := provider.Complete(ctx, summaryPrompt, a.Summary)
+					wrappedSummary := ai.WrapInput(a.Summary)
+					translated, err := provider.Complete(ctx, summaryPrompt, wrappedSummary)
 					if err != nil {
 						select {
 						case errCh <- fmt.Errorf("translate summary for %s: %w", a.ID, err):
