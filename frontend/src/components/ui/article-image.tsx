@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils'
 import { getProxiedImageUrl } from '@/lib/image-proxy'
 
 // Context for passing article URL to resolve relative URLs and set Referer
+// eslint-disable-next-line react-refresh/only-export-components
 export const ArticleLinkContext = createContext<string | undefined>(undefined)
 
 // Global cache to track loaded images - prevents flash when component remounts

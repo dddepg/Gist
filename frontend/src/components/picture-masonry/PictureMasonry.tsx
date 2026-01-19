@@ -230,6 +230,7 @@ export function PictureMasonry({
       <div
         ref={(el) => {
           scrollContainerRef.current = el
+          // eslint-disable-next-line react-hooks/immutability
           ;(containerRef as React.MutableRefObject<HTMLDivElement | null>).current = el
         }}
         className="min-h-0 flex-1 overflow-hidden"

@@ -30,6 +30,7 @@ export function formatDateTime(dateString: string): string {
  * Compare strings with ASCII-first sorting (English before Chinese)
  */
 export function compareStrings(a: string, b: string): number {
+  // eslint-disable-next-line no-control-regex
   const isAscii = (str: string) => /^[\x00-\x7F]/.test(str)
   const aIsAscii = isAscii(a)
   const bIsAscii = isAscii(b)

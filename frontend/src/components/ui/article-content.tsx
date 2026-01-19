@@ -78,6 +78,7 @@ const ArticleContentBlockRenderer = memo(function ArticleContentBlockRenderer({
 
     const result = parseHtml(content, {
       components: {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         img: ({ node: _, ...props }) => {
           const imgProps = props as React.ComponentProps<typeof ArticleImage>
           const src = imgProps.src || ''
@@ -97,8 +98,10 @@ const ArticleContentBlockRenderer = memo(function ArticleContentBlockRenderer({
           pruneImageCache()
           return element
         },
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         a: ({ node: _, ...props }) =>
           createElement(ArticleLink, props as React.ComponentProps<'a'>),
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         table: ({ node: _, ...props }) =>
           createElement(ArticleTable, props as React.ComponentProps<'table'>),
       },

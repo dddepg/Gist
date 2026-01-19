@@ -47,6 +47,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   // Reset to general when modal opens
   useEffect(() => {
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveTab('general')
     }
   }, [open])

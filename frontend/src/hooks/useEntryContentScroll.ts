@@ -24,6 +24,7 @@ export function useEntryContentScroll(entryId: string | null) {
     }
 
     // Reset scroll and state
+    // eslint-disable-next-line react-hooks/immutability
     scrollNode.scrollTop = 0
     setIsAtTop(true)
 

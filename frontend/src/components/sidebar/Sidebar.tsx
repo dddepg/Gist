@@ -28,8 +28,10 @@ type SortBy = 'name' | 'date'
 
 // ASCII first (English/numbers before Chinese)
 function compareNames(a: string, b: string): number {
+  /* eslint-disable no-control-regex */
   const isAsciiA = /^[\u0000-\u007f]/.test(a)
   const isAsciiB = /^[\u0000-\u007f]/.test(b)
+  /* eslint-enable no-control-regex */
   if (isAsciiA && !isAsciiB) return -1
   if (!isAsciiA && isAsciiB) return 1
   return a.localeCompare(b, 'zh-CN')
@@ -73,16 +75,20 @@ export function Sidebar({
     return current.filter((type) => type === 'article' || type === 'picture' || type === 'notification')
   }, [appearanceSettings])
 
-  // Animation direction tracking
+  // Animation direction tracking - calculate synchronously during render.
+  // This is intentional: direction must be computed before AnimatePresence uses it.
+  // Using useLayoutEffect causes race conditions where the effect executes after
+  // AnimatePresence has already started the animation with the wrong direction.
   const orderIndex = visibleContentTypes.indexOf(contentType)
   const prevOrderIndexRef = useRef(orderIndex)
   const directionRef = useRef<1 | -1>(1)
 
-  // Calculate direction synchronously before render
+  /* eslint-disable react-hooks/refs */
   if (orderIndex !== -1 && prevOrderIndexRef.current !== orderIndex) {
     directionRef.current = orderIndex > prevOrderIndexRef.current ? 1 : -1
     prevOrderIndexRef.current = orderIndex
   }
+  /* eslint-enable react-hooks/refs */
 
   const { data: allFolders = [] } = useFolders()
   const { data: allFeeds = [] } = useFeeds()
@@ -241,9 +247,11 @@ export function Sidebar({
 
       {/* Content */}
       <div className="relative flex-1 overflow-hidden">
+        {/* eslint-disable-next-line react-hooks/refs -- intentional: read direction synchronously for animation */}
         <AnimatePresence initial={false} mode="popLayout" custom={directionRef.current}>
           <motion.div
             key={contentType}
+            // eslint-disable-next-line react-hooks/refs -- intentional: read direction synchronously for animation
             custom={directionRef.current}
             variants={slideVariants}
             initial="enter"

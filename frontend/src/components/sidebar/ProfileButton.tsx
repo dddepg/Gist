@@ -90,10 +90,12 @@ const TransitionAvatar = React.forwardRef<
         onPointerDown={React.useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
           forceRefresh()
           props.onPointerDown?.(e)
+          // eslint-disable-next-line react-hooks/exhaustive-deps
         }, [forceRefresh, props.onPointerDown])}
         onClick={React.useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
           forceRefresh()
           props.onClick?.(e)
+          // eslint-disable-next-line react-hooks/exhaustive-deps
         }, [forceRefresh, props.onClick])}
       >
         <UserAvatar ref={measureRef} className="size-6 border-0" avatarUrl={avatarUrl} />

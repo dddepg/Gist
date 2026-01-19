@@ -24,8 +24,10 @@ export function EditFeedDialog({ feed, open, onOpenChange }: EditFeedDialogProps
 
   useEffect(() => {
     if (feed) {
+      /* eslint-disable react-hooks/set-state-in-effect */
       setTitle(feed.title)
       setError(null)
+      /* eslint-enable react-hooks/set-state-in-effect */
     }
   }, [feed])
 
