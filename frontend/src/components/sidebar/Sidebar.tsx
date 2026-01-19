@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
@@ -75,20 +75,30 @@ export function Sidebar({
     return current.filter((type) => type === 'article' || type === 'picture' || type === 'notification')
   }, [appearanceSettings])
 
-  // Animation direction tracking - calculate synchronously during render.
-  // This is intentional: direction must be computed before AnimatePresence uses it.
-  // Using useLayoutEffect causes race conditions where the effect executes after
-  // AnimatePresence has already started the animation with the wrong direction.
+  // Animation direction tracking:
+  // 1. direction is a state (set synchronously in effect, BEFORE setTimeout)
+  // 2. prevOrderIndexRef tracks contentType's orderIndex (not animatedContentType)
+  // 3. animatedContentType update is delayed via setTimeout
   const orderIndex = visibleContentTypes.indexOf(contentType)
-  const prevOrderIndexRef = useRef(orderIndex)
-  const directionRef = useRef<1 | -1>(1)
+  const prevOrderIndexRef = useRef(-1)
+  const [isAnimationReady, setIsAnimationReady] = useState(false)
+  const [direction, setDirection] = useState<1 | -1>(1)
+  const [animatedContentType, setAnimatedContentType] = useState(contentType)
 
-  /* eslint-disable react-hooks/refs */
-  if (orderIndex !== -1 && prevOrderIndexRef.current !== orderIndex) {
-    directionRef.current = orderIndex > prevOrderIndexRef.current ? 1 : -1
+  useLayoutEffect(() => {
+    const prevOrderIndex = prevOrderIndexRef.current
+    if (prevOrderIndex !== orderIndex && prevOrderIndex !== -1) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: must set direction BEFORE setTimeout schedules key update
+      setDirection(orderIndex > prevOrderIndex ? 1 : -1)
+    }
+    setTimeout(() => {
+      setAnimatedContentType(contentType)
+    }, 0)
+    if (prevOrderIndexRef.current !== -1) {
+      setIsAnimationReady(true)
+    }
     prevOrderIndexRef.current = orderIndex
-  }
-  /* eslint-enable react-hooks/refs */
+  }, [orderIndex, contentType])
 
   const { data: allFolders = [] } = useFolders()
   const { data: allFeeds = [] } = useFeeds()
@@ -98,14 +108,14 @@ export function Sidebar({
   const { mutate: updateFeedType } = useUpdateFeedType()
   const { mutate: updateFolderType } = useUpdateFolderType()
 
-  // Filter by content type
+  // Filter by content type - use animatedContentType to keep content in sync with animation
   const folders = useMemo(
-    () => allFolders.filter((f) => f.type === contentType),
-    [allFolders, contentType]
+    () => allFolders.filter((f) => f.type === animatedContentType),
+    [allFolders, animatedContentType]
   )
   const feeds = useMemo(
-    () => allFeeds.filter((f) => f.type === contentType),
-    [allFeeds, contentType]
+    () => allFeeds.filter((f) => f.type === animatedContentType),
+    [allFeeds, animatedContentType]
   )
 
   const { data: unreadCountsData } = useUnreadCounts()
@@ -169,24 +179,9 @@ export function Sidebar({
     return map
   }, [feeds, unreadCounts])
 
-  // Use contentType directly for filtering (no delay)
+  // Group feeds by folder (uses animatedContentType for content sync with animation)
   const { foldersWithFeeds, uncategorizedFeeds } = groupFeedsByFolder(folders, feeds)
 
-  // Animation variants for slide transition
-  const slideVariants = {
-    enter: (direction: number) => ({
-      x: direction > 0 ? '100%' : '-100%',
-      opacity: 0,
-    }),
-    center: {
-      x: 0,
-      opacity: 1,
-    },
-    exit: (direction: number) => ({
-      x: direction > 0 ? '-100%' : '100%',
-      opacity: 0,
-    }),
-  }
 
   // Sort feeds helper
   const sortFeeds = useCallback(
@@ -247,16 +242,12 @@ export function Sidebar({
 
       {/* Content */}
       <div className="relative flex-1 overflow-hidden">
-        {/* eslint-disable-next-line react-hooks/refs -- intentional: read direction synchronously for animation */}
-        <AnimatePresence initial={false} mode="popLayout" custom={directionRef.current}>
+        <AnimatePresence initial={false} mode="popLayout">
           <motion.div
-            key={contentType}
-            // eslint-disable-next-line react-hooks/refs -- intentional: read direction synchronously for animation
-            custom={directionRef.current}
-            variants={slideVariants}
-            initial="enter"
-            animate="center"
-            exit="exit"
+            key={animatedContentType}
+            initial={isAnimationReady ? { x: direction > 0 ? '100%' : '-100%', opacity: 0 } : false}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: direction > 0 ? '-100%' : '100%', opacity: 0 }}
             transition={{
               x: { type: 'spring', stiffness: 300, damping: 30 },
               opacity: { duration: 0.2 },
