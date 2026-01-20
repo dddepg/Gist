@@ -24,6 +24,8 @@ export function Lightbox() {
 
   // Track pointer position to distinguish click from drag in carousel
   const pointerDownPos = useRef<{ x: number; y: number } | null>(null)
+  const scrollLockYRef = useRef(0)
+  const touchMoveHandlerRef = useRef<((e: TouchEvent) => void) | null>(null)
 
   // Track if index change is from embla interaction (to avoid scrollTo interrupting animation)
   const isEmblaNavigatingRef = useRef(false)
@@ -124,37 +126,68 @@ export function Lightbox() {
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [isOpen, close, emblaApi])
 
-  // Prevent body scroll when open (iOS Safari requires position: fixed)
+  // Prevent body scroll when open. iOS PWA avoids position: fixed to prevent white bar.
   useEffect(() => {
-    if (isOpen) {
-      const scrollY = window.scrollY
-      document.body.style.position = 'fixed'
-      document.body.style.top = `-${scrollY}px`
-      document.body.style.left = '0'
-      document.body.style.right = '0'
-      document.body.style.overflow = 'hidden'
-    } else {
-      const scrollY = document.body.style.top
+    const isIOS =
+      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+    const isStandalone =
+      (typeof window.matchMedia === 'function' &&
+        window.matchMedia('(display-mode: standalone)').matches) ||
+      (navigator as Navigator & { standalone?: boolean }).standalone === true
+    // iOS PWA uses touchmove lock to avoid position: fixed viewport bugs.
+    const isIOSPWA = isIOS && isStandalone
+
+    const unlockScroll = () => {
+      const storedTop = document.body.style.top
       document.body.style.position = ''
       document.body.style.top = ''
       document.body.style.left = ''
       document.body.style.right = ''
       document.body.style.overflow = ''
-      // Restore scroll position
-      if (scrollY) {
-        window.scrollTo(0, parseInt(scrollY, 10) * -1)
+      document.documentElement.style.overflow = ''
+
+      if (touchMoveHandlerRef.current) {
+        document.removeEventListener('touchmove', touchMoveHandlerRef.current)
+        touchMoveHandlerRef.current = null
+      }
+
+      if (isIOSPWA) {
+        if (scrollLockYRef.current) {
+          window.scrollTo(0, scrollLockYRef.current)
+        }
+        return
+      }
+
+      if (storedTop) {
+        window.scrollTo(0, parseInt(storedTop, 10) * -1)
       }
     }
-    return () => {
-      const scrollY = document.body.style.top
-      document.body.style.position = ''
-      document.body.style.top = ''
-      document.body.style.left = ''
-      document.body.style.right = ''
-      document.body.style.overflow = ''
-      if (scrollY) {
-        window.scrollTo(0, parseInt(scrollY, 10) * -1)
+
+    if (isOpen) {
+      scrollLockYRef.current = window.scrollY
+
+      if (isIOSPWA) {
+        document.documentElement.style.overflow = 'hidden'
+        document.body.style.overflow = 'hidden'
+        const handler = (e: TouchEvent) => {
+          e.preventDefault()
+        }
+        touchMoveHandlerRef.current = handler
+        document.addEventListener('touchmove', handler, { passive: false })
+      } else {
+        document.body.style.position = 'fixed'
+        document.body.style.top = `-${scrollLockYRef.current}px`
+        document.body.style.left = '0'
+        document.body.style.right = '0'
+        document.body.style.overflow = 'hidden'
       }
+    } else {
+      unlockScroll()
+    }
+
+    return () => {
+      unlockScroll()
     }
   }, [isOpen])
 

@@ -224,16 +224,40 @@ describe('Lightbox', () => {
    * BUG regression test: Background page scrollable on mobile touch
    *
    * Problem: When lightbox is open, the background page could still be scrolled
-   * on mobile devices (especially iOS Safari) using touch gestures.
+   * on mobile devices using touch gestures.
    *
-   * Root cause: Using only `overflow: hidden` on body is insufficient for iOS Safari.
-   * iOS Safari ignores overflow:hidden for touch scroll events.
-   *
-   * Fix: Use `position: fixed` with `top: -scrollY` to lock the body in place,
-   * then restore scroll position when closing. This is the standard solution
-   * for iOS Safari scroll lock.
+   * Fix: Non-iOS PWA uses position: fixed to lock scroll. iOS PWA uses
+   * touchmove prevention to avoid viewport shrink/white bar issues.
    */
   describe('BUG: background page scrollable on mobile touch', () => {
+    const setIOSPWA = () => {
+      const originalNavigator = navigator
+      const originalMatchMedia = window.matchMedia
+
+      vi.stubGlobal('navigator', {
+        userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)',
+        platform: 'iPhone',
+        maxTouchPoints: 5,
+        standalone: true,
+      })
+
+      window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+        matches: query === '(display-mode: standalone)',
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }))
+
+      return () => {
+        vi.stubGlobal('navigator', originalNavigator)
+        window.matchMedia = originalMatchMedia
+      }
+    }
+
     beforeEach(() => {
       // Reset body styles before each test
       document.body.style.position = ''
@@ -241,9 +265,10 @@ describe('Lightbox', () => {
       document.body.style.left = ''
       document.body.style.right = ''
       document.body.style.overflow = ''
+      document.documentElement.style.overflow = ''
     })
 
-    it('should use position:fixed to lock body scroll (not just overflow:hidden)', () => {
+    it('should use position:fixed to lock body scroll on non-iOS PWA', () => {
       useLightboxStore.getState().open(
         mockImageEntry,
         mockFeed,
@@ -259,6 +284,45 @@ describe('Lightbox', () => {
       // Body should have left and right set to prevent width change
       expect(document.body.style.left).toBe('0px')
       expect(document.body.style.right).toBe('0px')
+    })
+
+    it('should prevent touchmove on iOS PWA without position:fixed', () => {
+      const restoreEnv = setIOSPWA()
+      const addListenerSpy = vi.spyOn(document, 'addEventListener')
+      const removeListenerSpy = vi.spyOn(document, 'removeEventListener')
+
+      useLightboxStore.getState().open(
+        mockImageEntry,
+        mockFeed,
+        [mockImageEntry.thumbnailUrl!]
+      )
+
+      const { unmount } = render(<Lightbox />, { wrapper: createWrapper() })
+
+      expect(document.body.style.position).toBe('')
+      expect(document.body.style.overflow).toBe('hidden')
+      expect(document.documentElement.style.overflow).toBe('hidden')
+
+      const addCall = addListenerSpy.mock.calls.find(([eventName]) => eventName === 'touchmove')
+      expect(addCall).toBeDefined()
+      expect(addCall?.[2]).toEqual({ passive: false })
+
+      act(() => {
+        useLightboxStore.getState().close()
+        useLightboxStore.getState().reset()
+      })
+
+      unmount()
+
+      const handler = addCall?.[1] as EventListener
+      const removeCall = removeListenerSpy.mock.calls.find(
+        ([eventName, listener]) => eventName === 'touchmove' && listener === handler
+      )
+      expect(removeCall).toBeDefined()
+
+      addListenerSpy.mockRestore()
+      removeListenerSpy.mockRestore()
+      restoreEnv()
     })
 
     it('should set body top based on scroll position', () => {
