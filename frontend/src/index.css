@@ -392,6 +392,18 @@ body {
   line-height: 1.8;
 }
 
+/* Link hover animation */
+.entry-content .prose :where(a):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+  text-decoration: underline;
+  text-decoration-color: hsl(var(--primary) / 0.3);
+  text-underline-offset: 3px;
+  transition: text-decoration-color 0.2s ease;
+}
+
+.entry-content .prose :where(a):not(:where([class~="not-prose"], [class~="not-prose"] *)):hover {
+  text-decoration-color: hsl(var(--primary));
+}
+
 /* Remove prose default code backtick decorations */
 .entry-content .prose :where(code):not(:where([class~="not-prose"], [class~="not-prose"] *))::before,
 .entry-content .prose :where(code):not(:where([class~="not-prose"], [class~="not-prose"] *))::after {
@@ -480,12 +492,19 @@ body {
   padding: 0 1rem;
 }
 
-/* Custom blockquote styling */
+/* Custom blockquote styling - minimal left border */
 .entry-content .prose :where(blockquote):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
-  background: var(--entry-quote-bg);
-  padding: 1rem 1.5rem;
-  border-radius: 0.5rem;
-  border-left-width: 4px;
+  background: transparent;
+  padding: 0.25rem 0 0.25rem 1.25rem;
+  margin-left: 0;
+  border-radius: 0;
+  border-left: 2px solid hsl(var(--muted-foreground) / 0.3);
+  color: hsl(var(--foreground) / 0.85);
+  font-style: normal;
+}
+
+.entry-content .prose :where(blockquote p):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+  margin: 0;
 }
 
 /* Custom table styling */
