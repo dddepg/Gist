@@ -359,5 +359,9 @@
     "feed": "订阅源",
     "folder": "文件夹",
     "no_articles": "暂无文章"
+  },
+  "update": {
+    "available": "发现新版本",
+    "description": "点击刷新以应用更新"
   }
 }

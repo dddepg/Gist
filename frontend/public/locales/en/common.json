@@ -359,5 +359,9 @@
     "feed": "Feed",
     "folder": "Folder",
     "no_articles": "No articles"
+  },
+  "update": {
+    "available": "Update Available",
+    "description": "Click to refresh and apply the update"
   }
 }

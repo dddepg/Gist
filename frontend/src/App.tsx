@@ -10,6 +10,7 @@ import { EntryList } from '@/components/entry-list'
 import { EntryContent } from '@/components/entry-content'
 import { PictureMasonry, Lightbox } from '@/components/picture-masonry'
 import { LoginPage, RegisterPage } from '@/components/auth'
+import { UpdateNotice } from '@/components/update-notice'
 import { useSelection, selectionToParams } from '@/hooks/useSelection'
 import { useMarkAllAsRead, useEntry } from '@/hooks/useEntries'
 import { useMobileLayout } from '@/hooks/useMobileLayout'
@@ -365,6 +366,7 @@ function App() {
     <TooltipProvider delayDuration={300}>
       <Router>
         <AppContent />
+        <UpdateNotice />
       </Router>
     </TooltipProvider>
   )

@@ -11,7 +11,8 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
+      injectRegister: false,
       includeAssets: ['logo.svg', 'favicon.ico', 'apple-touch-icon-180x180.png'],
       manifest: {
         name: 'Gist - RSS Reader',
@@ -47,10 +48,11 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,json}'],
-        // SPA fallback for client-side routing
+        // Only precache essential files, not all JS chunks (shiki has 300+ language files)
+        globPatterns: ['index.html', 'manifest.webmanifest', 'assets/index-*.js', 'assets/index-*.css', 'assets/*-vendor-*.js', '*.png', '*.svg'],
         navigateFallback: 'index.html',
         navigateFallbackDenylist: [/^\/api/],
+        cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -80,7 +82,6 @@ export default defineConfig({
               },
             },
           },
-          // Feed icons cache
           {
             urlPattern: /\/icons\/[^/]+$/,
             handler: 'CacheFirst',
@@ -88,14 +89,13 @@ export default defineConfig({
               cacheName: 'feed-icons-cache',
               expiration: {
                 maxEntries: 500,
-                maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+                maxAgeSeconds: 60 * 60 * 24 * 30,
               },
               cacheableResponse: {
                 statuses: [0, 200],
               },
             },
           },
-          // Proxied images cache
           {
             urlPattern: /\/api\/proxy\/image\/.+/,
             handler: 'CacheFirst',
@@ -103,7 +103,7 @@ export default defineConfig({
               cacheName: 'proxied-images-cache',
               expiration: {
                 maxEntries: 1000,
-                maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
+                maxAgeSeconds: 60 * 60 * 24 * 7,
               },
               cacheableResponse: {
                 statuses: [0, 200],
@@ -112,7 +112,6 @@ export default defineConfig({
           },
         ],
       },
-      // Enable SW in dev for testing (optional, can be removed)
       devOptions: {
         enabled: false,
       },
