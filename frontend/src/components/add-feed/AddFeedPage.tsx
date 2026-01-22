@@ -1,7 +1,7 @@
 import { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
-import { useAddFeed } from '@/hooks/useAddFeed'
+import { useAddFeed, type SubscribeOptions } from '@/hooks/useAddFeed'
 import { useFolders } from '@/hooks/useFolders'
 import { BackIcon } from '@/components/ui/icons'
 import { FeedUrlForm } from './FeedUrlForm'
@@ -28,7 +28,7 @@ export function AddFeedPage({ onClose, onFeedAdded, contentType = 'article' }: A
   } = useAddFeed(contentType)
   const { data: folders = [] } = useFolders()
 
-  const handleSubscribe = useCallback(async (feedUrl: string, options: { folderName?: string; title?: string }) => {
+  const handleSubscribe = useCallback(async (feedUrl: string, options: SubscribeOptions) => {
     const success = await subscribeFeed(feedUrl, options)
     if (success) {
       onFeedAdded?.(feedUrl)
@@ -90,6 +90,7 @@ export function AddFeedPage({ onClose, onFeedAdded, contentType = 'article' }: A
               <FeedPreviewCard
                 feed={feedPreview}
                 folders={folders}
+                contentType={contentType}
                 onSubscribe={handleSubscribe}
                 isLoading={isLoading}
               />

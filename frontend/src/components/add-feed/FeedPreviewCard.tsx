@@ -4,16 +4,41 @@ import { cn } from '@/lib/utils'
 import { formatRelativeTime } from '@/lib/date-utils'
 import { isSafeUrl, getSafeHostname } from '@/lib/url'
 import { getProxiedImageUrl } from '@/lib/image-proxy'
-import type { FeedPreview, Folder } from '@/types/api'
+import type { FeedPreview, Folder, ContentType } from '@/types/api'
+import type { SubscribeOptions } from '@/hooks/useAddFeed'
 
 interface FeedPreviewCardProps {
   feed: FeedPreview
   folders: Folder[]
-  onSubscribe: (url: string, options: { folderName?: string; title?: string }) => void
+  contentType: ContentType
+  onSubscribe: (url: string, options: SubscribeOptions) => void
   isLoading?: boolean
 }
 
-export function FeedPreviewCard({ feed, folders, onSubscribe, isLoading = false }: FeedPreviewCardProps) {
+const getTypeIcon = (type: ContentType) => {
+  switch (type) {
+    case 'article':
+      return (
+        <svg className="size-3 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      )
+    case 'picture':
+      return (
+        <svg className="size-3 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      )
+    case 'notification':
+      return (
+        <svg className="size-3 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+        </svg>
+      )
+  }
+}
+
+export function FeedPreviewCard({ feed, folders, contentType, onSubscribe, isLoading = false }: FeedPreviewCardProps) {
   const { t } = useTranslation()
   const [customTitle, setCustomTitle] = useState('')
   const [folderInput, setFolderInput] = useState('')
@@ -32,19 +57,26 @@ export function FeedPreviewCard({ feed, folders, onSubscribe, isLoading = false 
     )
   }, [folders, folderInput])
 
-  const isNewFolder = useMemo(() => {
-    if (!folderInput.trim()) return false
-    return !folders.some(
+  const selectedFolder = useMemo(() => {
+    if (!folderInput.trim()) return null
+    return folders.find(
       (folder) => folder.name.toLowerCase() === folderInput.trim().toLowerCase()
     )
   }, [folders, folderInput])
 
+  const isNewFolder = useMemo(() => {
+    if (!folderInput.trim()) return false
+    return !selectedFolder
+  }, [folderInput, selectedFolder])
+
   const handleSubscribe = useCallback(() => {
+    const targetFolderType = selectedFolder ? selectedFolder.type : (folderInput.trim() ? contentType : undefined)
     onSubscribe(feed.url, {
       title: customTitle || undefined,
       folderName: folderInput.trim() || undefined,
+      targetFolderType,
     })
-  }, [feed.url, customTitle, folderInput, onSubscribe])
+  }, [feed.url, customTitle, folderInput, selectedFolder, contentType, onSubscribe])
 
   const handleFolderSelect = useCallback((folderName: string) => {
     setFolderInput(folderName)
@@ -193,9 +225,10 @@ export function FeedPreviewCard({ feed, folders, onSubscribe, isLoading = false 
                     key={folder.id}
                     type="button"
                     onClick={() => handleFolderSelect(folder.name)}
-                    className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-accent flex items-center gap-2"
                   >
-                    {folder.name}
+                    {getTypeIcon(folder.type)}
+                    <span>{folder.name}</span>
                   </button>
                 ))}
               </div>

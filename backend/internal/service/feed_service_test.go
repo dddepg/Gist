@@ -80,7 +80,7 @@ func TestFeedService_Add_Success(t *testing.T) {
 	}
 
 	folderID := int64(10)
-	mockFolders.EXPECT().GetByID(gomock.Any(), folderID).Return(model.Folder{ID: folderID}, nil)
+	mockFolders.EXPECT().GetByID(gomock.Any(), folderID).Return(model.Folder{ID: folderID, Type: "article"}, nil)
 
 	var createdFeed model.Feed
 	mockFeeds.EXPECT().FindByURL(gomock.Any(), feedURL).Return(nil, nil)
@@ -426,11 +426,14 @@ func TestFeedService_Update_Delete_UpdateType_DeleteBatch(t *testing.T) {
 	require.ErrorIs(t, err, service.ErrInvalid)
 
 	folderID := int64(10)
+	// 先获取 feed
+	mockFeeds.EXPECT().GetByID(gomock.Any(), int64(1)).Return(model.Feed{ID: 1, Title: "Old", Type: "article"}, nil)
+	// 然后获取 folder 失败
 	mockFolders.EXPECT().GetByID(gomock.Any(), folderID).Return(model.Folder{}, errors.New("db"))
 	_, err = svc.Update(context.Background(), 1, "Title", &folderID)
 	require.Error(t, err)
 
-	mockFolders.EXPECT().GetByID(gomock.Any(), folderID).Return(model.Folder{ID: folderID}, nil)
+	// feed 不存在
 	mockFeeds.EXPECT().GetByID(gomock.Any(), int64(1)).Return(model.Feed{}, sql.ErrNoRows)
 	_, err = svc.Update(context.Background(), 1, "Title", &folderID)
 	require.ErrorIs(t, err, service.ErrNotFound)
@@ -919,6 +922,9 @@ func TestFeedService_Update_FolderNotFound(t *testing.T) {
 	mockFolders := mock.NewMockFolderRepository(ctrl)
 
 	folderID := int64(10)
+	// 先获取 feed
+	mockFeeds.EXPECT().GetByID(gomock.Any(), int64(1)).Return(model.Feed{ID: 1, Title: "Title", Type: "article"}, nil)
+	// 然后获取 folder 失败
 	mockFolders.EXPECT().GetByID(gomock.Any(), folderID).Return(model.Folder{}, sql.ErrNoRows)
 
 	svc := service.NewFeedService(mockFeeds, mockFolders, nil, nil, nil, nil, nil)
@@ -1082,4 +1088,261 @@ func TestFeedService_Add_IconFetchError(t *testing.T) {
 	feed, err := svc.Add(context.Background(), feedURL, nil, "", "article")
 	require.NoError(t, err)
 	require.Nil(t, feed.IconPath)
+}
+
+// BUG 回测：跨视图文件夹类型一致性检查
+// 验证创建订阅时，feed 类型必须与 folder 类型匹配
+func TestFeedService_Add_TypeMismatch(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockFeeds := mock.NewMockFeedRepository(ctrl)
+	mockFolders := mock.NewMockFolderRepository(ctrl)
+	mockEntries := mock.NewMockEntryRepository(ctrl)
+
+	feedURL := "https://example.com/rss"
+	folderID := int64(10)
+
+	client := &http.Client{
+		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+			require.Equal(t, feedURL, req.URL.String())
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(sampleRSS)),
+				Header:     make(http.Header),
+				Request:    req,
+			}, nil
+		}),
+	}
+
+	mockFeeds.EXPECT().FindByURL(gomock.Any(), feedURL).Return(nil, nil)
+	// Folder 是 picture 类型，但 feed 是 article 类型
+	mockFolders.EXPECT().GetByID(gomock.Any(), folderID).Return(model.Folder{ID: folderID, Type: "picture"}, nil)
+
+	clientFactory := network.NewClientFactoryForTest(client)
+	svc := service.NewFeedService(mockFeeds, mockFolders, mockEntries, nil, nil, clientFactory, nil)
+	_, err := svc.Add(context.Background(), feedURL, &folderID, "", "article")
+	require.ErrorIs(t, err, service.ErrInvalid)
+}
+
+// BUG 回测：AddWithoutFetch 方法也必须检查类型一致性
+func TestFeedService_AddWithoutFetch_TypeMismatch(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockFeeds := mock.NewMockFeedRepository(ctrl)
+	mockFolders := mock.NewMockFolderRepository(ctrl)
+
+	feedURL := "https://example.com/rss"
+	folderID := int64(10)
+
+	mockFeeds.EXPECT().FindByURL(gomock.Any(), feedURL).Return(nil, nil)
+	// Folder 是 article 类型，但 feed 是 picture 类型
+	mockFolders.EXPECT().GetByID(gomock.Any(), folderID).Return(model.Folder{ID: folderID, Type: "article"}, nil)
+
+	svc := service.NewFeedService(mockFeeds, mockFolders, nil, nil, nil, nil, nil)
+	_, _, err := svc.AddWithoutFetch(context.Background(), feedURL, &folderID, "", "picture")
+	require.ErrorIs(t, err, service.ErrInvalid)
+}
+
+// BUG 回测：更新订阅的文件夹时必须检查类型一致性
+func TestFeedService_Update_TypeMismatch(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockFeeds := mock.NewMockFeedRepository(ctrl)
+	mockFolders := mock.NewMockFolderRepository(ctrl)
+
+	newFolderID := int64(20)
+
+	// 获取目标文件夹
+	mockFolders.EXPECT().GetByID(gomock.Any(), newFolderID).Return(model.Folder{ID: newFolderID, Type: "picture"}, nil)
+	// 获取当前 feed
+	mockFeeds.EXPECT().GetByID(gomock.Any(), int64(1)).Return(model.Feed{ID: 1, Title: "Feed Title", Type: "article"}, nil)
+
+	svc := service.NewFeedService(mockFeeds, mockFolders, nil, nil, nil, nil, nil)
+	_, err := svc.Update(context.Background(), 1, "Feed Title", &newFolderID)
+	require.ErrorIs(t, err, service.ErrInvalid)
+}
+
+// BUG 回测：更新到同类型文件夹应该成功
+func TestFeedService_Update_SameTypeSucceeds(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockFeeds := mock.NewMockFeedRepository(ctrl)
+	mockFolders := mock.NewMockFolderRepository(ctrl)
+
+	newFolderID := int64(20)
+
+	// 获取目标文件夹
+	mockFolders.EXPECT().GetByID(gomock.Any(), newFolderID).Return(model.Folder{ID: newFolderID, Type: "article"}, nil)
+	// 获取当前 feed
+	mockFeeds.EXPECT().GetByID(gomock.Any(), int64(1)).Return(model.Feed{ID: 1, Title: "Feed Title", Type: "article"}, nil)
+	// 更新
+	mockFeeds.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(_ context.Context, feed model.Feed) (model.Feed, error) {
+			require.Equal(t, "Feed Title", feed.Title)
+			require.Equal(t, &newFolderID, feed.FolderID)
+			return feed, nil
+		},
+	)
+
+	svc := service.NewFeedService(mockFeeds, mockFolders, nil, nil, nil, nil, nil)
+	feed, err := svc.Update(context.Background(), 1, "Feed Title", &newFolderID)
+	require.NoError(t, err)
+	require.Equal(t, &newFolderID, feed.FolderID)
+}
+
+// BUG 回测：更新到相同文件夹应该不触发类型检查（指针值比较）
+func TestFeedService_Update_SameFolderNoTypeCheck(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockFeeds := mock.NewMockFeedRepository(ctrl)
+	mockFolders := mock.NewMockFolderRepository(ctrl)
+
+	folderID := int64(20)
+	existingFolderID := int64(20) // 相同值但不同指针
+
+	// 获取当前 feed，已经在这个文件夹中
+	mockFeeds.EXPECT().GetByID(gomock.Any(), int64(1)).Return(model.Feed{
+		ID:       1,
+		Title:    "Feed Title",
+		Type:     "article",
+		FolderID: &existingFolderID,
+	}, nil)
+
+	// 不应该调用 GetByID 查询文件夹（因为 folderID 没变）
+	// mockFolders.EXPECT().GetByID(...) - 不应该被调用
+
+	// 应该直接更新
+	mockFeeds.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(_ context.Context, feed model.Feed) (model.Feed, error) {
+			require.Equal(t, "New Title", feed.Title)
+			require.Equal(t, &folderID, feed.FolderID)
+			return feed, nil
+		},
+	)
+
+	svc := service.NewFeedService(mockFeeds, mockFolders, nil, nil, nil, nil, nil)
+	feed, err := svc.Update(context.Background(), 1, "New Title", &folderID)
+	require.NoError(t, err)
+	require.Equal(t, &folderID, feed.FolderID)
+}
+
+// BUG 回测：从无文件夹移动到文件夹应该触发类型检查
+func TestFeedService_Update_FromNullToFolder(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockFeeds := mock.NewMockFeedRepository(ctrl)
+	mockFolders := mock.NewMockFolderRepository(ctrl)
+
+	folderID := int64(20)
+
+	// 获取当前 feed，没有文件夹
+	mockFeeds.EXPECT().GetByID(gomock.Any(), int64(1)).Return(model.Feed{
+		ID:       1,
+		Title:    "Feed Title",
+		Type:     "article",
+		FolderID: nil,
+	}, nil)
+
+	// 应该查询目标文件夹并验证类型
+	mockFolders.EXPECT().GetByID(gomock.Any(), folderID).Return(model.Folder{ID: folderID, Type: "article"}, nil)
+
+	mockFeeds.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(_ context.Context, feed model.Feed) (model.Feed, error) {
+			return feed, nil
+		},
+	)
+
+	svc := service.NewFeedService(mockFeeds, mockFolders, nil, nil, nil, nil, nil)
+	_, err := svc.Update(context.Background(), 1, "Feed Title", &folderID)
+	require.NoError(t, err)
+}
+
+// BUG 回测：从文件夹移动到无文件夹不应该触发类型检查
+func TestFeedService_Update_FromFolderToNull(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockFeeds := mock.NewMockFeedRepository(ctrl)
+	mockFolders := mock.NewMockFolderRepository(ctrl)
+
+	existingFolderID := int64(20)
+
+	// 获取当前 feed，在文件夹中
+	mockFeeds.EXPECT().GetByID(gomock.Any(), int64(1)).Return(model.Feed{
+		ID:       1,
+		Title:    "Feed Title",
+		Type:     "article",
+		FolderID: &existingFolderID,
+	}, nil)
+
+	// 不应该查询文件夹（因为移动到 nil）
+	// mockFolders.EXPECT().GetByID(...) - 不应该被调用
+
+	mockFeeds.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(_ context.Context, feed model.Feed) (model.Feed, error) {
+			require.Nil(t, feed.FolderID)
+			return feed, nil
+		},
+	)
+
+	svc := service.NewFeedService(mockFeeds, mockFolders, nil, nil, nil, nil, nil)
+	_, err := svc.Update(context.Background(), 1, "Feed Title", nil)
+	require.NoError(t, err)
+}
+
+// BUG 回测：添加到同类型文件夹应该成功
+func TestFeedService_Add_SameTypeSucceeds(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockFeeds := mock.NewMockFeedRepository(ctrl)
+	mockFolders := mock.NewMockFolderRepository(ctrl)
+	mockEntries := mock.NewMockEntryRepository(ctrl)
+
+	feedURL := "https://example.com/rss"
+	client := &http.Client{
+		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+			require.Equal(t, feedURL, req.URL.String())
+			header := make(http.Header)
+			header.Set("ETag", "etag-value")
+			header.Set("Last-Modified", "Mon, 02 Jan 2006 15:04:05 GMT")
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(sampleRSS)),
+				Header:     header,
+				Request:    req,
+			}, nil
+		}),
+	}
+
+	folderID := int64(10)
+	// Folder 是 picture 类型，feed 也是 picture 类型
+	mockFolders.EXPECT().GetByID(gomock.Any(), folderID).Return(model.Folder{ID: folderID, Type: "picture"}, nil)
+
+	var createdFeed model.Feed
+	mockFeeds.EXPECT().FindByURL(gomock.Any(), feedURL).Return(nil, nil)
+	mockFeeds.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(_ context.Context, feed model.Feed) (model.Feed, error) {
+			createdFeed = feed
+			require.Equal(t, "picture", feed.Type)
+			require.Equal(t, &folderID, feed.FolderID)
+			feed.ID = 123
+			return feed, nil
+		},
+	)
+
+	mockEntries.EXPECT().CreateOrUpdate(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+
+	clientFactory := network.NewClientFactoryForTest(client)
+	svc := service.NewFeedService(mockFeeds, mockFolders, mockEntries, nil, nil, clientFactory, nil)
+	feed, err := svc.Add(context.Background(), feedURL, &folderID, "", "picture")
+	require.NoError(t, err)
+	require.Equal(t, int64(123), feed.ID)
+	require.Equal(t, "picture", createdFeed.Type)
 }

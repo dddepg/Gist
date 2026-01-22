@@ -7,6 +7,7 @@ import type { ContentType, FeedPreview, Folder } from '@/types/api'
 export interface SubscribeOptions {
   folderName?: string
   title?: string
+  targetFolderType?: ContentType
 }
 
 interface UseAddFeedReturn {
@@ -22,16 +23,18 @@ interface UseAddFeedReturn {
 async function findOrCreateFolder(
   folderName: string,
   existingFolders: Folder[],
-  contentType: ContentType
+  targetType: ContentType
 ): Promise<string> {
   const existing = existingFolders.find(
-    (folder) => folder.name.toLowerCase() === folderName.toLowerCase()
+    (folder) =>
+      folder.name.toLowerCase() === folderName.toLowerCase() &&
+      folder.type === targetType
   )
   if (existing) {
     return existing.id
   }
 
-  const created = await createFolder({ name: folderName, type: contentType })
+  const created = await createFolder({ name: folderName, type: targetType })
   return created.id
 }
 
@@ -70,10 +73,13 @@ export function useAddFeed(contentType: ContentType = 'article'): UseAddFeedRetu
 
     try {
       let folderId: string | undefined
+      let feedType: ContentType = contentType
 
       if (options.folderName) {
         const folders = await listFolders()
-        folderId = await findOrCreateFolder(options.folderName, folders, contentType)
+        const targetType = options.targetFolderType || contentType
+        folderId = await findOrCreateFolder(options.folderName, folders, targetType)
+        feedType = targetType
         await queryClient.invalidateQueries({ queryKey: ['folders'] })
       }
 
@@ -81,7 +87,7 @@ export function useAddFeed(contentType: ContentType = 'article'): UseAddFeedRetu
         url: feedUrl,
         folderId,
         title: options.title,
-        type: contentType,
+        type: feedType,
       })
       await queryClient.invalidateQueries({ queryKey: ['feeds'] })
       return true

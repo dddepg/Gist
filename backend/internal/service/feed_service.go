@@ -73,11 +73,16 @@ func (s *feedService) Add(ctx context.Context, feedURL string, folderID *int64, 
 		return model.Feed{}, &FeedConflictError{ExistingFeed: *existing}
 	}
 	if folderID != nil {
-		if _, err := s.folders.GetByID(ctx, *folderID); err != nil {
+		folder, err := s.folders.GetByID(ctx, *folderID)
+		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return model.Feed{}, ErrNotFound
 			}
 			return model.Feed{}, fmt.Errorf("check folder: %w", err)
+		}
+		if folder.Type != feedType {
+			logger.Warn("feed type mismatch with folder type", "module", "service", "action", "create", "resource", "feed", "result", "failed", "folder_id", *folderID, "folder_type", folder.Type, "feed_type", feedType)
+			return model.Feed{}, ErrInvalid
 		}
 	}
 
@@ -170,11 +175,16 @@ func (s *feedService) AddWithoutFetch(ctx context.Context, feedURL string, folde
 		return *existing, false, nil // Feed already exists, not an error
 	}
 	if folderID != nil {
-		if _, err := s.folders.GetByID(ctx, *folderID); err != nil {
+		folder, err := s.folders.GetByID(ctx, *folderID)
+		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return model.Feed{}, false, ErrNotFound
 			}
 			return model.Feed{}, false, fmt.Errorf("check folder: %w", err)
+		}
+		if folder.Type != feedType {
+			logger.Warn("feed type mismatch with folder type", "module", "service", "action", "create", "resource", "feed", "result", "failed", "folder_id", *folderID, "folder_type", folder.Type, "feed_type", feedType)
+			return model.Feed{}, false, ErrInvalid
 		}
 	}
 
@@ -245,14 +255,6 @@ func (s *feedService) Update(ctx context.Context, id int64, title string, folder
 	if trimmedTitle == "" {
 		return model.Feed{}, ErrInvalid
 	}
-	if folderID != nil {
-		if _, err := s.folders.GetByID(ctx, *folderID); err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return model.Feed{}, ErrNotFound
-			}
-			return model.Feed{}, fmt.Errorf("check folder: %w", err)
-		}
-	}
 
 	feed, err := s.feeds.GetByID(ctx, id)
 	if err != nil {
@@ -260,6 +262,30 @@ func (s *feedService) Update(ctx context.Context, id int64, title string, folder
 			return model.Feed{}, ErrNotFound
 		}
 		return model.Feed{}, fmt.Errorf("get feed: %w", err)
+	}
+
+	// Check if folder is actually changing (value comparison, not pointer comparison)
+	folderChanged := false
+	if folderID == nil && feed.FolderID != nil {
+		folderChanged = true // moving from folder to no folder
+	} else if folderID != nil && feed.FolderID == nil {
+		folderChanged = true // moving from no folder to folder
+	} else if folderID != nil && feed.FolderID != nil && *folderID != *feed.FolderID {
+		folderChanged = true // moving from one folder to another
+	}
+
+	if folderID != nil && folderChanged {
+		folder, err := s.folders.GetByID(ctx, *folderID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return model.Feed{}, ErrNotFound
+			}
+			return model.Feed{}, fmt.Errorf("check folder: %w", err)
+		}
+		if folder.Type != feed.Type {
+			logger.Warn("feed type mismatch with folder type", "module", "service", "action", "update", "resource", "feed", "result", "failed", "feed_id", id, "folder_id", *folderID, "folder_type", folder.Type, "feed_type", feed.Type)
+			return model.Feed{}, ErrInvalid
+		}
 	}
 	feed.Title = trimmedTitle
 	feed.FolderID = folderID

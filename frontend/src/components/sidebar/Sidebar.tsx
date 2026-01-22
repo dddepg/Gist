@@ -131,10 +131,17 @@ export function Sidebar({
 
   const handleMoveToFolder = useCallback((feedId: string, folderId: string | null) => {
     const feed = allFeeds.find((f) => f.id === feedId)
-    if (feed) {
-      updateFeed({ id: feedId, title: feed.title, folderId: folderId ?? undefined })
+    if (!feed) return
+
+    if (folderId !== null) {
+      const folder = folders.find((f) => f.id === folderId)
+      if (!folder || folder.type !== feed.type) {
+        return
+      }
     }
-  }, [allFeeds, updateFeed])
+
+    updateFeed({ id: feedId, title: feed.title, folderId: folderId ?? undefined })
+  }, [allFeeds, folders, updateFeed])
 
   const handleChangeFeedType = useCallback((feedId: string, type: ContentType) => {
     updateFeedType({ id: feedId, type })
