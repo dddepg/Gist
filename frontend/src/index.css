@@ -570,6 +570,13 @@ body {
 /* Image shadow effect */
 .entry-content .prose :where(img, video):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  max-width: 100%;
+  height: auto;
+}
+
+/* WordPress caption figures can carry large inline widths */
+.entry-content .prose :where(figure):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+  max-width: 100%;
 }
 
 /* Fix for Radix UI ScrollArea viewport forcing table display which expands width */
